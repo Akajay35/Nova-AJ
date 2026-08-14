@@ -19,8 +19,7 @@ class SkillLearning:
 
     def propose(self, request: str, reason: str) -> dict:
         items = self._read()
-        proposal = {"id": len(items) + 1, "request": request.strip(), "reason": reason.strip(),
-                    "status": "proposed", "created_at": datetime.now(timezone.utc).isoformat()}
+        proposal = {"id": len(items) + 1, "request": request.strip(), "reason": reason.strip(), "status": "proposed", "created_at": datetime.now(timezone.utc).isoformat()}
         items.append(proposal); self._write(items); return proposal
 
     def list(self, status: str | None = None) -> list[dict]:
@@ -28,9 +27,11 @@ class SkillLearning:
         return [x for x in items if status is None or x.get("status") == status]
 
     def validate(self, proposal_id: int) -> bool:
-        for item in self._read():
+        items = self._read()
+        for item in items:
             if item.get("id") == proposal_id:
                 item["status"] = "validated"
-                self._write(self._read())
+                item["validated_at"] = datetime.now(timezone.utc).isoformat()
+                self._write(items)
                 return True
         return False
