@@ -2,7 +2,13 @@ name: Nova AJ tests
 
 on:
   push:
+    branches: [main]
   pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   test:
@@ -12,6 +18,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+          cache: pip
       - name: Install test dependencies
         run: python -m pip install --upgrade pip pytest
       - name: Run tests
