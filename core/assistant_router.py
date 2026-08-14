@@ -8,9 +8,10 @@ class RouteResult:
     response: object
 
 class AssistantRouter:
-    """Small deterministic command router; handlers can be replaced by the real agent/skills layer."""
-    def __init__(self, handlers: dict[str, Callable[[str], object]] | None = None):
+    """Routes commands and can delegate unmatched capability requests to skill learning."""
+    def __init__(self, handlers: dict[str, Callable[[str], object]] | None = None, learning_loop=None):
         self.handlers = handlers or {}
+        self.learning_loop = learning_loop
 
     def classify(self, text: str) -> str:
         value=text.lower().strip()
@@ -22,5 +23,10 @@ class AssistantRouter:
     def route(self, text: str) -> RouteResult:
         intent=self.classify(text)
         handler=self.handlers.get(intent)
-        response=handler(text) if handler else text
-        return RouteResult(intent, response)
+        if handler:
+            return RouteResult(intent, handler(text))
+        if self.learning_loop is not None and intent == "chat":
+            return RouteResult("learning", self.learning_loop.handle_capability_gap(
+                text, "new_capability", "Capability requested by the user", "No existing skill matched the request"
+            ))
+        return RouteResult(intent, text)
