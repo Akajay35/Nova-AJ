@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from core.base_skill import BaseSkill
+from core.startup_history import StartupHistory
 
 
 class StartupHistorySkill(BaseSkill):
     name = "startup_history"
-    description = "Report the most recent startup diagnostic audit result."
+    description = "Report recent startup diagnostic audit history."
     triggers = (
         "what happened during your last startup check",
         "last startup check",
@@ -24,8 +25,4 @@ class StartupHistorySkill(BaseSkill):
         audit = getattr(assistant.skill_management, "audit", None)
         if audit is None:
             return "Startup audit history is unavailable."
-        events = [e for e in audit.recent(20) if e.get("action") == "startup_diagnostics"]
-        if not events:
-            return "No startup diagnostic history is available yet."
-        latest = events[-1]
-        return f"The latest startup diagnostic was recorded as {latest['result']} at {latest['timestamp']}."
+        return StartupHistory(audit).summary()
