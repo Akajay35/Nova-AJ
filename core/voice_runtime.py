@@ -9,7 +9,7 @@ class VoiceRuntimeResult:
     activated: bool
 
 class VoiceRuntime:
-    """Coordinates wake-word activation, listening, assistant processing and speech."""
+    """Coordinates wake-word activation with the existing assistant and TTS adapters."""
     def __init__(self, listener, pipeline, wake_word: str = "nova", speak: Callable[[str], object] | None = None):
         self.listener = listener
         self.pipeline = pipeline
@@ -21,12 +21,13 @@ class VoiceRuntime:
         if not text:
             return VoiceRuntimeResult("", "", False)
         lowered = text.lower()
-        if self.wake_word not in lowered:
+        position = lowered.find(self.wake_word)
+        if position < 0:
             return VoiceRuntimeResult(text, "", False)
-        command = lowered.split(self.wake_word, 1)[1].strip(" ,.!?:")
+        command = text[position + len(self.wake_word):].strip(" ,.!?:")
         if not command:
             return VoiceRuntimeResult(text, "", True)
-        result = self.pipeline.process_once(command)
-        if result.response and self.speak:
-            self.speak(result.response)
-        return VoiceRuntimeResult(text, result.response, True)
+        response = self.pipeline.assistant(command)
+        if response and self.speak:
+            self.speak(response)
+        return VoiceRuntimeResult(text, response, True)
