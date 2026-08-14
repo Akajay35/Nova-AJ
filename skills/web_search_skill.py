@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from html.parser import HTMLParser
-from urllib.parse import quote, urlparse
+from urllib.parse import parse_qs, quote, unquote, urlparse
 from urllib.request import Request, urlopen
 
 from core.base_skill import BaseSkill
@@ -16,9 +16,8 @@ class _SearchParser(HTMLParser):
 
     def handle_starttag(self, tag, attrs):
         if tag == "a":
-            data = dict(attrs)
-            href = data.get("href", "")
-            if "uddg=" in href or "duckduckgo.com/l/?" in href:
+            href = dict(attrs).get("href", "")
+            if "duckduckgo.com/l/?" in href or "uddg=" in href:
                 self._link = href
                 self._text = []
 
@@ -29,8 +28,10 @@ class _SearchParser(HTMLParser):
     def handle_endtag(self, tag):
         if tag == "a" and self._link:
             title = " ".join(x for x in self._text if x)
+            parsed = urlparse(self._link)
+            target = parse_qs(parsed.query).get("uddg", [self._link])[0]
             if title and len(self.items) < 5:
-                self.items.append((title, self._link))
+                self.items.append((title, unquote(target)))
             self._link = ""
             self._text = []
 
@@ -54,6 +55,9 @@ class WebSearchSkill(BaseSkill):
     name = "web_search"
     description = "Searches the public web and returns a small list of result links."
     keywords = ["search the web", "web search", "search online", "look up", "google", "find online"]
+
+    def matches(self, query: str) -> bool:
+        return any(query.lower().strip().startswith(k) for k in self.keywords)
 
     def handle(self, query: str, context: dict) -> str:
         cleaned = query
