@@ -16,22 +16,14 @@ from .assistant_router import AssistantRouter
 from .health_check import HealthCheck
 from config import ASSISTANT_NAME, WAKE_WORD, VOICE_MAX_TURNS
 
-
 class NovaAssistant:
     """Main application facade coordinating voice, routing, skills, memory, learning and tools."""
     def __init__(self, router=None):
         self.listener = VoiceListener(); self.speaker = Speaker(); self.skills = SkillManager()
         self.memory = MemoryStore(); self.profile = ProfileStore(); self.learning = SkillGrowth()
         self.ai = AIProvider(); self.brain = AgentBrain(self.ai); self.conversation = ConversationContext(); self.tools = ToolRegistry()
-        self._register_tools()
-        self.agent = Agent(self.tools)
-        self.router = router or AssistantRouter()
-        self.health = HealthCheck({
-            "listener": self.listener, "speaker": self.speaker, "skills": self.skills,
-            "memory": self.memory, "profile": self.profile, "learning": self.learning,
-            "ai": self.ai, "brain": self.brain, "conversation": self.conversation,
-            "tools": self.tools, "agent": self.agent, "router": self.router,
-        })
+        self._register_tools(); self.agent = Agent(self.tools); self.router = router or AssistantRouter()
+        self.health = HealthCheck({"listener": self.listener, "speaker": self.speaker, "skills": self.skills, "memory": self.memory, "profile": self.profile, "learning": self.learning, "ai": self.ai, "brain": self.brain, "conversation": self.conversation, "tools": self.tools, "agent": self.agent, "router": self.router})
         self.voice_session = VoiceSession(self.listener, self.speaker, max_turns=VOICE_MAX_TURNS)
 
     def _register_tools(self) -> None:
@@ -42,14 +34,13 @@ class NovaAssistant:
     def handle(self, query: str) -> str:
         query=query.strip()
         if not query: return "I didn't catch that."
-        self.conversation.add("user", query)
-        routed=self.router.route(query)
+        self.conversation.add("user", query); routed=self.router.route(query)
         if routed.intent not in {"chat", "learning"} and routed.response is not None:
             answer=str(routed.response)
         else:
             skill=self.skills.find(query)
             if skill:
-                try: answer=skill.handle(query, {"memory":self.memory, "assistant":self})
+                try: answer=skill.handle(query, {"memory": self.memory, "assistant": self, "health": self.health})
                 except Exception as exc: answer=f"That skill failed safely: {exc}"
             else:
                 planned=self.agent.plan(query)
@@ -65,10 +56,7 @@ class NovaAssistant:
 
     def run(self):
         health=self.health.run()
-        if not health["ok"]:
-            self.speaker.speak(self.health.summary())
-        else:
-            self.speaker.speak(f"{ASSISTANT_NAME} is ready. Say {WAKE_WORD} to wake me.")
+        self.speaker.speak(self.health.summary() if not health["ok"] else f"{ASSISTANT_NAME} is ready. Say {WAKE_WORD} to wake me.")
         while True:
             try:
                 if not self.listener.wait_for_wake_word(): continue
