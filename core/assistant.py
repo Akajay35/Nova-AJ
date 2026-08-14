@@ -52,7 +52,7 @@ class NovaAssistant:
         self.conversation.add("assistant", answer); return answer
 
     def refresh_skills(self) -> list[str]:
-        self.skills.discover(); return self.skills.names()
+        return self.skills.discover() and self.skills.names()
 
     def run(self):
         health=self.health.run()
@@ -60,6 +60,7 @@ class NovaAssistant:
         while True:
             try:
                 if not self.listener.wait_for_wake_word(): continue
+                self.refresh_skills()
                 self.voice_session.run(self.handle)
             except KeyboardInterrupt: self.speaker.speak("Goodbye."); break
             except Exception as exc: self.speaker.speak(f"I hit a recoverable error: {exc}")
