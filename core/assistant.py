@@ -6,6 +6,7 @@ from .skill_manager import SkillManager
 from .skill_management import SkillManagement
 from .skill_permissions import SkillPermissions
 from .system_status import SystemStatus
+from .startup_diagnostics import StartupDiagnostics
 from .memory import MemoryStore
 from .learning import SkillGrowth
 from .ai_provider import AIProvider
@@ -30,6 +31,7 @@ class NovaAssistant:
         self._register_tools(); self.agent = Agent(self.tools); self.router = router or AssistantRouter()
         self.health = HealthCheck({"listener": self.listener, "speaker": self.speaker, "skills": self.skills, "memory": self.memory, "profile": self.profile, "learning": self.learning, "ai": self.ai, "brain": self.brain, "conversation": self.conversation, "tools": self.tools, "agent": self.agent, "router": self.router})
         self.system_status = SystemStatus(self)
+        self.startup_report = StartupDiagnostics(self)
         self.voice_session = VoiceSession(self.listener, self.speaker, max_turns=VOICE_MAX_TURNS)
 
     def _register_tools(self) -> None:
@@ -39,12 +41,10 @@ class NovaAssistant:
         self.tools.register(Tool(name="skill_status", description="Show active, quarantined, and failed skills", handler=lambda: str(self.skill_management.status())))
         self.tools.register(Tool(name="refresh_skills", description="Refresh the skill registry", handler=lambda: str(self.skill_management.refresh())))
         self.tools.register(Tool(name="system_status", description="Show read-only Nova system readiness and skill health", handler=lambda: self.system_status.summary()))
+        self.tools.register(Tool(name="startup_diagnostics", description="Explain current startup readiness issues", handler=lambda: self.startup_report.summary()))
 
     def startup_diagnostics(self) -> dict[str, object]:
-        """Run read-only startup diagnostics before announcing readiness."""
-        health = self.health.run()
-        skill_status = self.skill_management.refresh()
-        return {"ready": bool(health.get("ok")) and not bool(skill_status.get("errors")), "health": health, "skills": skill_status}
+        return self.startup_report.run()
 
     def handle(self, query: str) -> str:
         query=query.strip()
@@ -71,7 +71,7 @@ class NovaAssistant:
     def run(self):
         diagnostics=self.startup_diagnostics()
         if not diagnostics["ready"]:
-            self.speaker.speak("Nova startup diagnostics found an issue. System status needs attention.")
+            self.speaker.speak(self.startup_report.summary())
         else:
             self.speaker.speak(f"{ASSISTANT_NAME} is ready. Say {WAKE_WORD} to wake me.")
         while True:
