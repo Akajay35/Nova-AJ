@@ -1,0 +1,7 @@
+{
+  "name": "hello_nova",
+  "version": "1.0.0",
+  "description": "A safe example skill used to verify Nova skill discovery.",
+  "permissions": [],
+  "security_status": "manifest_only"
+}
