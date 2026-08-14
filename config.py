@@ -1,26 +1,15 @@
-"""
-Central configuration for the assistant.
-Change ASSISTANT_NAME to rename your assistant everywhere at once.
-"""
+"""Nova AJ configuration."""
+import os
 
-ASSISTANT_NAME = "Nova AJ"
-FULL_NAME = "Nova AJ"
+ASSISTANT_NAME = os.getenv("NOVA_NAME", "Nova AJ")
+WAKE_WORD = os.getenv("NOVA_WAKE_WORD", "nova aj").lower()
+LANGUAGE = os.getenv("NOVA_LANGUAGE", "en-IN")
+TTS_RATE = int(os.getenv("NOVA_TTS_RATE", "175"))
+MEMORY_FILE = os.getenv("NOVA_MEMORY_FILE", "data/memory.json")
+PROPOSAL_DIR = os.getenv("NOVA_PROPOSAL_DIR", "proposals")
+AI_PROVIDER = os.getenv("NOVA_AI_PROVIDER", "openai")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5-mini")
 
-# Wake word the assistant listens for before treating speech as a command.
-# Keep it short and phonetically distinct so speech recognition catches it reliably.
-WAKE_WORD = "nova aj"
-
-# Text-to-speech voice settings
-TTS_RATE = 175          # words per minute
-TTS_VOLUME = 1.0        # 0.0 to 1.0
-
-# Speech recognition settings
-LISTEN_TIMEOUT = 5          # seconds to wait for speech to start
-PHRASE_TIME_LIMIT = 8       # max seconds for a single command
-
-# Folder where skill files live. Any .py file dropped here that follows
-# the skill format is auto-loaded — no other code needs to change.
-SKILLS_FOLDER = "skills"
-
-# Simple on-disk memory (notes, reminders, etc.) used by built-in skills
-DATA_FOLDER = "data"
+# Safe-by-default: external/destructive actions require confirmation.
+CONFIRM_EXTERNAL_ACTIONS = os.getenv("NOVA_CONFIRM_EXTERNAL", "true").lower() == "true"
+MAX_MEMORY_ITEMS = int(os.getenv("NOVA_MAX_MEMORY", "500"))
