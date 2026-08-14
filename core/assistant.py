@@ -8,6 +8,7 @@ from .learning import SkillGrowth
 from .ai_provider import AIProvider
 from .conversation import ConversationContext
 from .agent import Agent
+from .agent_brain import AgentBrain
 from .tool_registry import Tool, ToolRegistry
 from .voice_session import VoiceSession
 from .profile import ProfileStore
@@ -18,7 +19,7 @@ class NovaAssistant:
     def __init__(self):
         self.listener = VoiceListener(); self.speaker = Speaker(); self.skills = SkillManager()
         self.memory = MemoryStore(); self.profile = ProfileStore(); self.learning = SkillGrowth()
-        self.ai = AIProvider(); self.conversation = ConversationContext(); self.tools = ToolRegistry()
+        self.ai = AIProvider(); self.brain = AgentBrain(self.ai); self.conversation = ConversationContext(); self.tools = ToolRegistry()
         self._register_tools(); self.agent = Agent(self.tools)
         self.voice_session = VoiceSession(self.listener, self.speaker, max_turns=VOICE_MAX_TURNS)
 
@@ -38,7 +39,7 @@ class NovaAssistant:
             planned = self.agent.plan(query)
             if planned.tool_name or planned.text.startswith("Available tools:"): answer = planned.text
             else:
-                answer = self.ai.answer(query, self.conversation.recent())
+                answer = self.brain.respond(query, self.conversation.recent())
                 if not answer:
                     proposal = self.learning.record_missing(query); answer = f"I don't have that skill yet. I recorded a skill proposal at {proposal}."
         self.conversation.add("assistant", answer); return answer
