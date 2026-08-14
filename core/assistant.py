@@ -3,6 +3,7 @@ from __future__ import annotations
 from .listener import VoiceListener
 from .speaker import Speaker
 from .skill_manager import SkillManager
+from .skill_management import SkillManagement
 from .memory import MemoryStore
 from .learning import SkillGrowth
 from .ai_provider import AIProvider
@@ -20,6 +21,7 @@ class NovaAssistant:
     """Main application facade coordinating voice, routing, skills, memory, learning and tools."""
     def __init__(self, router=None):
         self.listener = VoiceListener(); self.speaker = Speaker(); self.skills = SkillManager()
+        self.skill_management = SkillManagement(self.skills)
         self.memory = MemoryStore(); self.profile = ProfileStore(); self.learning = SkillGrowth()
         self.ai = AIProvider(); self.brain = AgentBrain(self.ai); self.conversation = ConversationContext(); self.tools = ToolRegistry()
         self._register_tools(); self.agent = Agent(self.tools); self.router = router or AssistantRouter()
@@ -30,17 +32,18 @@ class NovaAssistant:
         self.tools.register(Tool(name="list_skills", description="List installed assistant skills", handler=lambda: ", ".join(self.skills.names()) or "No skills installed."))
         self.tools.register(Tool(name="list_tools", description="List explicitly registered agent tools", handler=lambda: ", ".join(self.tools.names()) or "No tools registered."))
         self.tools.register(Tool(name="show_profile", description="Show the user's explicit saved profile", handler=lambda: str(self.profile.summary())))
+        self.tools.register(Tool(name="skill_status", description="Show active, quarantined, and failed skills", handler=lambda: str(self.skill_management.status())))
+        self.tools.register(Tool(name="refresh_skills", description="Refresh the skill registry", handler=lambda: str(self.skill_management.refresh())))
 
     def handle(self, query: str) -> str:
         query=query.strip()
         if not query: return "I didn't catch that."
         self.conversation.add("user", query); routed=self.router.route(query)
-        if routed.intent not in {"chat", "learning"} and routed.response is not None:
-            answer=str(routed.response)
+        if routed.intent not in {"chat", "learning"} and routed.response is not None: answer=str(routed.response)
         else:
             skill=self.skills.find(query)
             if skill:
-                try: answer=skill.handle(query, {"memory": self.memory, "assistant": self, "health": self.health})
+                try: answer=skill.handle(query, {"memory": self.memory, "assistant": self, "health": self.health, "skill_management": self.skill_management})
                 except Exception as exc: answer=f"That skill failed safely: {exc}"
             else:
                 planned=self.agent.plan(query)
@@ -52,15 +55,13 @@ class NovaAssistant:
         self.conversation.add("assistant", answer); return answer
 
     def refresh_skills(self) -> list[str]:
-        return self.skills.discover() and self.skills.names()
+        self.skill_management.refresh(); return self.skills.names()
 
     def run(self):
-        health=self.health.run()
-        self.speaker.speak(self.health.summary() if not health["ok"] else f"{ASSISTANT_NAME} is ready. Say {WAKE_WORD} to wake me.")
+        health=self.health.run(); self.speaker.speak(self.health.summary() if not health["ok"] else f"{ASSISTANT_NAME} is ready. Say {WAKE_WORD} to wake me.")
         while True:
             try:
                 if not self.listener.wait_for_wake_word(): continue
-                self.refresh_skills()
-                self.voice_session.run(self.handle)
+                self.refresh_skills(); self.voice_session.run(self.handle)
             except KeyboardInterrupt: self.speaker.speak("Goodbye."); break
             except Exception as exc: self.speaker.speak(f"I hit a recoverable error: {exc}")
