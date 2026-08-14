@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 class StartupDiagnostics:
-    """Format a safe, actionable startup-readiness report."""
+    """Format a safe, actionable startup-readiness report and audit the result."""
     def __init__(self, assistant):
         self.assistant = assistant
 
@@ -15,7 +15,11 @@ class StartupDiagnostics:
             issues.append(f"{len(skills['errors'])} skill load error(s)")
         if skills.get("quarantined"):
             issues.append(f"{len(skills['quarantined'])} skill(s) quarantined")
-        return {"ready": not issues, "issues": issues, "health": health, "skills": skills}
+        ready = not issues
+        audit = getattr(self.assistant.skill_management, "audit", None)
+        if audit is not None:
+            audit.record("startup_diagnostics", "ready" if ready else "needs_attention")
+        return {"ready": ready, "issues": issues, "health": health, "skills": skills}
 
     def summary(self) -> str:
         result = self.run()
