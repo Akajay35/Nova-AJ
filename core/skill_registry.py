@@ -5,7 +5,7 @@ from pathlib import Path
 REGISTRY_FILE = Path("data/skill_registry.json")
 
 class SkillRegistry:
-    """Local registry for skill metadata and capability discovery."""
+    """Local registry for skill metadata, capability discovery, and explicit enable/disable state."""
     def __init__(self, path: str = str(REGISTRY_FILE)):
         self.path = Path(path); self.path.parent.mkdir(parents=True, exist_ok=True)
         if not self.path.exists(): self._write({})
@@ -20,11 +20,15 @@ class SkillRegistry:
         data=self._read()
         if name not in data: return False
         data[name]["enabled"]=enabled; self._write(data); return True
+    def enable(self, name: str) -> bool: return self.set_enabled(name, True)
+    def disable(self, name: str) -> bool: return self.set_enabled(name, False)
     def remove(self, name: str) -> bool:
         data=self._read()
         if name not in data: return False
         del data[name]; self._write(data); return True
+    def get(self, name: str) -> dict | None: return self._read().get(name)
     def list(self, enabled_only: bool = False) -> dict:
         data=self._read(); return {k:v for k,v in data.items() if v.get("enabled")} if enabled_only else data
+    def available(self) -> dict: return self.list(enabled_only=True)
     def search(self, query: str) -> dict:
         q=query.lower(); return {k:v for k,v in self._read().items() if q in k.lower() or q in v.get("description","").lower()}
