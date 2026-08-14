@@ -2,19 +2,20 @@
 
 Nova AJ is a voice-first personal AI assistant designed to grow through a controlled, modular skill system.
 
-## Vision
+## Nova AJ v3
 
-- 🎙️ Voice-first interaction with a configurable wake word
-- 🧠 Local memory for approved preferences, notes, and conversation context
-- 🧩 Auto-discovered skills that can be added without changing the core router
-- 📈 Skill-growth engine that records missing capabilities and creates reviewable skill proposals
-- 🔐 Permission gates for actions that can change files, apps, accounts, or external services
-- 🤖 Optional OpenAI-powered reasoning when `OPENAI_API_KEY` is configured
-- 📴 Core functionality remains useful without an AI API key
+- 🎙️ Wake-word voice interaction
+- 🧠 Local memory for approved facts and notes
+- 💬 Short-term conversation context for more natural AI replies
+- 🤖 Optional OpenAI-powered reasoning
+- 🧩 Auto-discovered Python skills
+- 📈 Missing-capability detection and reviewable skill proposals
+- 🧮 Safe arithmetic calculator
+- 🌐 Allowlisted browser launcher for common websites
+- 🔄 Skill reload without restarting the assistant
+- 🔐 Safe-by-default design: no arbitrary self-generated code execution
 
-> Nova AJ does not silently write or execute arbitrary code. New skills are proposed, validated, and explicitly enabled.
-
-## Project structure
+## Architecture
 
 ```text
 Nova-AJ/
@@ -23,57 +24,56 @@ Nova-AJ/
 ├── requirements.txt
 ├── .env.example
 ├── core/
-│   ├── assistant.py
-│   ├── listener.py
-│   ├── speaker.py
-│   ├── base_skill.py
-│   ├── skill_manager.py
-│   ├── memory.py
-│   ├── learning.py
-│   ├── permissions.py
-│   └── ai_provider.py
+│   ├── assistant.py       # voice loop + orchestration
+│   ├── listener.py        # microphone / wake word
+│   ├── speaker.py         # text-to-speech
+│   ├── base_skill.py      # skill contract
+│   ├── skill_manager.py   # dynamic discovery and routing
+│   ├── memory.py          # persistent local memory
+│   ├── conversation.py    # short-term conversation buffer
+│   ├── learning.py        # missing-skill proposals
+│   ├── permissions.py     # action policy
+│   └── ai_provider.py     # optional AI reasoning
 ├── skills/
 │   ├── greeting_skill.py
 │   ├── time_skill.py
 │   ├── notes_skill.py
-│   ├── help_skill.py
 │   ├── memory_skill.py
+│   ├── help_skill.py
 │   ├── system_skill.py
+│   ├── calculator_skill.py
+│   ├── browser_skill.py
 │   └── _skill_template.py
-├── data/
-├── proposals/
+├── tests/
+├── data/                  # local runtime data
+├── proposals/             # proposed future skills
 └── docs/SKILLS.md
 ```
 
 ## Quick start
 
 1. Install Python 3.10+.
-2. Install packages: `pip install -r requirements.txt`
-3. Copy `.env.example` to `.env` and optionally add an OpenAI API key.
-4. Run: `python main.py`
-5. Say **"Nova AJ"**, wait for the response, and give a command.
+2. Install packages:
+   `pip install -r requirements.txt`
+3. Copy `.env.example` to `.env`.
+4. Add `OPENAI_API_KEY` if you want AI reasoning.
+5. Run:
+   `python main.py`
+6. Say **"Nova AJ"** and then speak your command.
 
-On Linux, PyAudio may require PortAudio development packages. On Windows, use a current Python version and a working microphone.
-
-## Voice examples
+## Example commands
 
 - "Nova AJ, what time is it?"
-- "Nova AJ, remember my favorite editor is VS Code."
-- "Nova AJ, take a note: finish the dashboard tomorrow."
+- "Nova AJ, calculate 25 * 4"
+- "Nova AJ, open YouTube"
+- "Nova AJ, remember that I use VS Code"
 - "Nova AJ, what skills do you have?"
-- "Nova AJ, show my memory."
+- "Nova AJ, show my memory"
 
-## Automatic skill growth
+## Skill growth
 
-1. Nova AJ receives a request.
-2. The router looks for an installed capability.
-3. If no safe skill matches, the learning engine records the missing capability.
-4. A reviewable proposal is created in `proposals/`.
-5. A developer/user implements and tests the skill.
-6. The skill is enabled only after validation.
-
-This makes Nova AJ expandable without giving the assistant unrestricted permission to modify or execute its own source code.
+When Nova AJ receives a request it cannot safely handle, the learning engine records a missing capability as a proposal. A human can then implement, test, review, and enable that skill. This gives the assistant a path to become more capable without allowing uncontrolled self-modification.
 
 ## Security
 
-Never commit API keys. Keep `.env` local. Review new skills before enabling them, especially skills that access files, the operating system, accounts, payments, or external APIs.
+Never commit API keys. Keep `.env` local. Review any skill before enabling it, especially skills that access files, the operating system, accounts, payments, or external services. Browser automation is intentionally allowlisted.
