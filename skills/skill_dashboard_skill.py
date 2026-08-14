@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from core.base_skill import BaseSkill
+from core.skill_dashboard import SkillDashboard
 
 
 class SkillDashboardSkill(BaseSkill):
     name = "skill_dashboard"
-    description = "Show a unified, read-only overview of Nova skill health and permissions."
+    description = "Show a unified, read-only overview of Nova skill health, permissions, and activity."
     triggers = (
         "show my skill dashboard",
         "skill dashboard",
@@ -21,15 +22,4 @@ class SkillDashboardSkill(BaseSkill):
         assistant = context.get("assistant")
         if assistant is None:
             return "The assistant context is unavailable."
-        manager = assistant.skills
-        status = manager.names()
-        quarantined = manager.quarantined_skills()
-        errors = manager.errors()
-        permissions = assistant.skill_permissions
-        audit = getattr(assistant.skill_management, "audit", None)
-        events = audit.recent(5) if audit else []
-        recovery = "enabled" if permissions.allow_recovery else "disabled"
-        message = f"Skill dashboard: {len(status)} active, {len(quarantined)} quarantined, {len(errors)} current load errors. Recovery is {recovery}."
-        if events:
-            message += f" {len(events)} recent audit events available."
-        return message
+        return SkillDashboard(assistant.skill_management).summary()
