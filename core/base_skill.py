@@ -1,31 +1,19 @@
-"""
-Every skill in the skills/ folder must define a class that inherits from BaseSkill.
-This is the only contract the skill system relies on, so adding new abilities to
-the assistant never requires touching core code.
-"""
+from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import Any
 
 
 class BaseSkill(ABC):
-    # Short, human-readable name shown in logs / "what can you do" listings.
-    name = "unnamed_skill"
-
-    # List of trigger words/phrases that suggest this skill should handle the query.
-    keywords = []
-
-    def can_handle(self, query: str) -> bool:
-        """
-        Return True if this skill should handle the given query.
-        Default implementation checks for any keyword match; override for
-        custom logic (regex, intent scoring, etc.).
-        """
-        query_lower = query.lower()
-        return any(keyword in query_lower for keyword in self.keywords)
+    name = "unnamed"
+    description = ""
+    keywords: list[str] = []
+    risk_level = "low"
 
     @abstractmethod
-    def handle(self, query: str) -> str:
-        """
-        Process the query and return the text the assistant should speak back.
-        """
+    def handle(self, query: str, context: dict[str, Any] | None = None) -> str:
         raise NotImplementedError
+
+    def matches(self, query: str) -> bool:
+        text = query.lower().strip()
+        return any(keyword.lower() in text for keyword in self.keywords)
