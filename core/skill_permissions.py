@@ -4,6 +4,8 @@ DEFAULT_PERMISSIONS = {"memory", "web", "files", "browser", "system"}
 
 class SkillPermissions:
     """Allowlist permissions for skills; sensitive permissions require explicit approval."""
+    MANAGEMENT_ACTIONS = {"status", "diagnostics", "list", "refresh", "recover"}
+
     def __init__(self):
         self._permissions: dict[str, set[str]] = {}
         self._approved: set[tuple[str, str]] = set()
@@ -26,3 +28,9 @@ class SkillPermissions:
 
     def configured(self, skill: str) -> set[str]:
         return set(self._permissions.get(skill, set()))
+
+    def allows_management(self, action: str, recovery_approved: bool = False) -> bool:
+        action = action.strip().lower()
+        if action in {"status", "diagnostics", "list", "refresh"}: return True
+        if action == "recover": return recovery_approved
+        return False
