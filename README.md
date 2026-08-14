@@ -1,82 +1,79 @@
-# Nova AJ — Personal Voice Assistant
+# Nova AJ — Personal AI Assistant
 
-A voice-controlled personal AI assistant with a **self-expanding skill system**.
-Drop a new skill file into `skills/`, restart, and Nova AJ can do it — no core
-code edits required.
+Nova AJ is a voice-first personal AI assistant designed to grow through a controlled, modular skill system.
 
-## Features
+## Vision
 
-- Wake-word activated (says "Nova AJ" to start listening)
-- Offline text-to-speech (pyttsx3)
-- Google Speech Recognition for voice-to-text
-- Auto-discovering skills architecture
-- Built-in skills: time/date, greetings, notes, help/skill-listing
+- 🎙️ Voice-first interaction with a configurable wake word
+- 🧠 Local memory for approved preferences, notes, and conversation context
+- 🧩 Auto-discovered skills that can be added without changing the core router
+- 📈 Skill-growth engine that records missing capabilities and creates reviewable skill proposals
+- 🔐 Permission gates for actions that can change files, apps, accounts, or external services
+- 🤖 Optional OpenAI-powered reasoning when `OPENAI_API_KEY` is configured
+- 📴 Core functionality remains useful without an AI API key
 
-## Setup
-
-1. Install Python 3.9+.
-2. Install dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
-   > On Linux you may also need `sudo apt install portaudio19-dev` before
-   > installing PyAudio. On Mac, `brew install portaudio`.
-3. Run it:
-   ```
-   python main.py
-   ```
-4. Say **"Nova AJ"**, wait for "Yes?", then speak your command.
-
-## Renaming your assistant
-
-Change `ASSISTANT_NAME`, `FULL_NAME`, and `WAKE_WORD` in `config.py`. Everything else
-updates automatically.
-
-## Adding a new skill (this is how it "automatically increases")
-
-1. Copy `skills/_skill_template.py` to `skills/your_skill_name.py`.
-2. Rename the class, set `keywords` to the phrases that should trigger it,
-   and write your logic in `handle()`.
-3. Restart the assistant — it's auto-loaded. That's it.
-
-Example minimal skill:
-
-```python
-from core.base_skill import BaseSkill
-
-class JokeSkill(BaseSkill):
-    name = "joke"
-    keywords = ["tell me a joke", "make me laugh"]
-
-    def handle(self, query: str) -> str:
-        return "I'd tell you a UDP joke, but you might not get it."
-```
+> Nova AJ does not silently write or execute arbitrary code. New skills are proposed, validated, and explicitly enabled.
 
 ## Project structure
 
-```
-aj-assistant/
-├── main.py                 # entry point
-├── config.py                # name, wake word, and behavior settings
+```text
+Nova-AJ/
+├── main.py
+├── config.py
+├── requirements.txt
+├── .env.example
 ├── core/
-│   ├── assistant.py          # main listen -> route -> speak loop
-│   ├── listener.py           # microphone input, wake word detection
-│   ├── speaker.py             # text-to-speech output
-│   ├── skill_manager.py        # auto-discovers and routes to skills
-│   └── base_skill.py            # base class every skill implements
+│   ├── assistant.py
+│   ├── listener.py
+│   ├── speaker.py
+│   ├── base_skill.py
+│   ├── skill_manager.py
+│   ├── memory.py
+│   ├── learning.py
+│   ├── permissions.py
+│   └── ai_provider.py
 ├── skills/
-│   ├── _skill_template.py        # copy this to make a new skill
-│   ├── time_skill.py
 │   ├── greeting_skill.py
+│   ├── time_skill.py
 │   ├── notes_skill.py
-│   └── help_skill.py
-└── requirements.txt
+│   ├── help_skill.py
+│   ├── memory_skill.py
+│   ├── system_skill.py
+│   └── _skill_template.py
+├── data/
+├── proposals/
+└── docs/SKILLS.md
 ```
 
-## Ideas for skills to add next
+## Quick start
 
-- Smart home control (Home Assistant / Philips Hue API)
-- Music playback (Spotify API)
-- Web search / weather (needs an API key)
-- Calendar reading
-- App/website launcher
+1. Install Python 3.10+.
+2. Install packages: `pip install -r requirements.txt`
+3. Copy `.env.example` to `.env` and optionally add an OpenAI API key.
+4. Run: `python main.py`
+5. Say **"Nova AJ"**, wait for the response, and give a command.
+
+On Linux, PyAudio may require PortAudio development packages. On Windows, use a current Python version and a working microphone.
+
+## Voice examples
+
+- "Nova AJ, what time is it?"
+- "Nova AJ, remember my favorite editor is VS Code."
+- "Nova AJ, take a note: finish the dashboard tomorrow."
+- "Nova AJ, what skills do you have?"
+- "Nova AJ, show my memory."
+
+## Automatic skill growth
+
+1. Nova AJ receives a request.
+2. The router looks for an installed capability.
+3. If no safe skill matches, the learning engine records the missing capability.
+4. A reviewable proposal is created in `proposals/`.
+5. A developer/user implements and tests the skill.
+6. The skill is enabled only after validation.
+
+This makes Nova AJ expandable without giving the assistant unrestricted permission to modify or execute its own source code.
+
+## Security
+
+Never commit API keys. Keep `.env` local. Review new skills before enabling them, especially skills that access files, the operating system, accounts, payments, or external APIs.
