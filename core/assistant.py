@@ -1,40 +1,40 @@
-"""
-The main run loop: wait for the wake word, capture a command, route it to
-the right skill, speak the result, repeat.
-"""
+from __future__ import annotations
+from .listener import VoiceListener
+from .speaker import Speaker
+from .skill_manager import SkillManager
+from .memory import MemoryStore
+from .learning import SkillGrowth
+from .ai_provider import AIProvider
+from config import ASSISTANT_NAME, WAKE_WORD
 
-import config
-from core.listener import Listener
-from core.speaker import Speaker
-from core.skill_manager import SkillManager
-
-
-class Assistant:
+class NovaAssistant:
     def __init__(self):
-        self.listener = Listener()
-        self.speaker = Speaker()
-        self.skills = SkillManager(config.SKILLS_FOLDER)
+        self.listener = VoiceListener(); self.speaker = Speaker(); self.skills = SkillManager()
+        self.memory = MemoryStore(); self.learning = SkillGrowth(); self.ai = AIProvider()
+
+    def handle(self, query: str) -> str:
+        query = query.strip()
+        if not query: return "I didn't catch that."
+        skill = self.skills.find(query)
+        if skill:
+            try: return skill.handle(query, {"memory": self.memory, "assistant": self})
+            except Exception as exc: return f"That skill failed safely: {exc}"
+        answer = self.ai.answer(query)
+        if answer: return answer
+        proposal = self.learning.record_missing(query)
+        return f"I don't have that skill yet. I recorded a skill proposal at {proposal}."
 
     def run(self):
-        self.speaker.say(f"{config.FULL_NAME} is online and listening for the wake word.")
-
+        self.speaker.speak(f"{ASSISTANT_NAME} is ready. Say {WAKE_WORD} to wake me.")
         while True:
             try:
-                if self.listener.listen_for_wake_word():
-                    self.speaker.say("Yes?")
-                    command = self.listener.listen_for_command()
-
-                    if not command:
-                        self.speaker.say("Sorry, I didn't catch that.")
-                        continue
-
-                    if command.lower() in ("exit", "quit", "shut down", "goodbye"):
-                        self.speaker.say("Goodbye!")
-                        break
-
-                    response = self.skills.route(command)
-                    self.speaker.say(response)
-
+                if not self.listener.wait_for_wake_word(): continue
+                self.speaker.speak("Yes?")
+                command = self.listener.listen()
+                if command.lower() in {"exit", "quit", "stop", "goodbye"}:
+                    self.speaker.speak("Goodbye."); break
+                self.speaker.speak(self.handle(command))
             except KeyboardInterrupt:
-                self.speaker.say("Shutting down.")
-                break
+                self.speaker.speak("Goodbye."); break
+            except Exception as exc:
+                self.speaker.speak(f"I hit a recoverable error: {exc}")
