@@ -13,6 +13,7 @@ from .tool_registry import Tool, ToolRegistry
 from .voice_session import VoiceSession
 from .profile import ProfileStore
 from .assistant_router import AssistantRouter
+from .health_check import HealthCheck
 from config import ASSISTANT_NAME, WAKE_WORD, VOICE_MAX_TURNS
 
 
@@ -25,6 +26,12 @@ class NovaAssistant:
         self._register_tools()
         self.agent = Agent(self.tools)
         self.router = router or AssistantRouter()
+        self.health = HealthCheck({
+            "listener": self.listener, "speaker": self.speaker, "skills": self.skills,
+            "memory": self.memory, "profile": self.profile, "learning": self.learning,
+            "ai": self.ai, "brain": self.brain, "conversation": self.conversation,
+            "tools": self.tools, "agent": self.agent, "router": self.router,
+        })
         self.voice_session = VoiceSession(self.listener, self.speaker, max_turns=VOICE_MAX_TURNS)
 
     def _register_tools(self) -> None:
@@ -57,7 +64,11 @@ class NovaAssistant:
         self.skills.discover(); return self.skills.names()
 
     def run(self):
-        self.speaker.speak(f"{ASSISTANT_NAME} is ready. Say {WAKE_WORD} to wake me.")
+        health=self.health.run()
+        if not health["ok"]:
+            self.speaker.speak(self.health.summary())
+        else:
+            self.speaker.speak(f"{ASSISTANT_NAME} is ready. Say {WAKE_WORD} to wake me.")
         while True:
             try:
                 if not self.listener.wait_for_wake_word(): continue
