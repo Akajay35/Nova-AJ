@@ -9,7 +9,8 @@ from .ai_provider import AIProvider
 from .conversation import ConversationContext
 from .agent import Agent
 from .tool_registry import Tool, ToolRegistry
-from config import ASSISTANT_NAME, WAKE_WORD
+from .voice_session import VoiceSession
+from config import ASSISTANT_NAME, WAKE_WORD, VOICE_MAX_TURNS
 
 
 class NovaAssistant:
@@ -24,6 +25,7 @@ class NovaAssistant:
         self.tools = ToolRegistry()
         self._register_tools()
         self.agent = Agent(self.tools)
+        self.voice_session = VoiceSession(self.listener, self.speaker, max_turns=VOICE_MAX_TURNS)
 
     def _register_tools(self) -> None:
         self.tools.register(Tool(
@@ -72,12 +74,7 @@ class NovaAssistant:
             try:
                 if not self.listener.wait_for_wake_word():
                     continue
-                self.speaker.speak("Yes?")
-                command = self.listener.listen()
-                if command.lower() in {"exit", "quit", "stop", "goodbye"}:
-                    self.speaker.speak("Goodbye.")
-                    break
-                self.speaker.speak(self.handle(command))
+                self.voice_session.run(self.handle)
             except KeyboardInterrupt:
                 self.speaker.speak("Goodbye.")
                 break
