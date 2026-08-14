@@ -3,6 +3,7 @@ from __future__ import annotations
 from .skill_dashboard import SkillDashboard
 from .startup_history import StartupHistory
 from .startup_reliability import StartupReliability
+from .startup_reliability_trend import StartupReliabilityTrend
 
 
 class SystemStatus:
@@ -16,6 +17,7 @@ class SystemStatus:
         startup = None
         history = None
         reliability = None
+        trend = None
         reporter = getattr(self.assistant, "startup_report", None)
         audit = getattr(self.assistant.skill_management, "audit", None)
         if reporter is not None:
@@ -23,6 +25,7 @@ class SystemStatus:
         if audit is not None:
             history = StartupHistory(audit).recent(5)
             reliability = StartupReliability(audit).assess(5)
+            trend = StartupReliabilityTrend(audit).assess(5)
         return {
             "ready": bool(health.get("ok")) and (startup is None or bool(startup.get("ready"))),
             "health": health,
@@ -30,6 +33,7 @@ class SystemStatus:
             "startup": startup,
             "startup_history": history,
             "startup_reliability": reliability,
+            "startup_reliability_trend": trend,
         }
 
     def summary(self) -> str:
@@ -47,4 +51,7 @@ class SystemStatus:
         reliability = data.get("startup_reliability")
         if reliability and reliability.get("score") is not None:
             message += f" Startup reliability: {reliability['score']}/100 across {reliability['checks']} recent checks."
+        trend = data.get("startup_reliability_trend")
+        if trend and trend.get("current") is not None:
+            message += f" Reliability trend: {trend['trend']} ({trend['current']}/100 vs {trend['previous']}/100)."
         return message
