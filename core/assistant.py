@@ -4,6 +4,7 @@ from .listener import VoiceListener
 from .speaker import Speaker
 from .skill_manager import SkillManager
 from .skill_management import SkillManagement
+from .skill_permissions import SkillPermissions
 from .memory import MemoryStore
 from .learning import SkillGrowth
 from .ai_provider import AIProvider
@@ -21,7 +22,8 @@ class NovaAssistant:
     """Main application facade coordinating voice, routing, skills, memory, learning and tools."""
     def __init__(self, router=None):
         self.listener = VoiceListener(); self.speaker = Speaker(); self.skills = SkillManager()
-        self.skill_management = SkillManagement(self.skills)
+        self.skill_permissions = SkillPermissions()
+        self.skill_management = SkillManagement(self.skills, self.skill_permissions)
         self.memory = MemoryStore(); self.profile = ProfileStore(); self.learning = SkillGrowth()
         self.ai = AIProvider(); self.brain = AgentBrain(self.ai); self.conversation = ConversationContext(); self.tools = ToolRegistry()
         self._register_tools(); self.agent = Agent(self.tools); self.router = router or AssistantRouter()
