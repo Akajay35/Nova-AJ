@@ -20,10 +20,12 @@ from .assistant_router import AssistantRouter
 from .health_check import HealthCheck
 from config import ASSISTANT_NAME, WAKE_WORD, VOICE_MAX_TURNS
 
+
 class NovaAssistant:
     """Main application facade coordinating voice, routing, skills, memory, learning and tools."""
     def __init__(self, router=None):
         self.listener = VoiceListener(); self.speaker = Speaker(); self.skills = SkillManager()
+        self.skills.load()
         self.skill_permissions = SkillPermissions()
         self.skill_management = SkillManagement(self.skills, self.skill_permissions)
         self.memory = MemoryStore(); self.profile = ProfileStore(); self.learning = SkillGrowth()
