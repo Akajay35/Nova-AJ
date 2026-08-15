@@ -1,4 +1,5 @@
 from __future__ import annotations
+import hashlib
 import importlib
 import importlib.util
 import inspect
@@ -14,6 +15,7 @@ class SkillManager:
         self.skills: list[BaseSkill] = []
         self.load_errors: list[dict[str, str]] = []
         self.quarantined: set[str] = set()
+        self._quarantine_hashes: dict[str, str] = {}
         self.failure_counts: dict[str, int] = {}
         self._quarantine_file = self._state_path()
         self._load_quarantine_state()
@@ -25,23 +27,46 @@ class SkillManager:
     def _state_path(self) -> Path:
         return self._skills_dir() / ".nova_quarantine.json"
 
+    @staticmethod
+    def _source_hash(source: str) -> str:
+        return hashlib.sha256(source.encode("utf-8")).hexdigest()
+
     def _load_quarantine_state(self) -> None:
         try:
             data = json.loads(self._quarantine_file.read_text(encoding="utf-8"))
-            entries = data.get("quarantined", [])
+            entries = data.get("quarantined", {})
             if isinstance(entries, list):
+                # Backward-compatible migration from the original filename-only format.
                 self.quarantined = {
                     name for name in entries
                     if isinstance(name, str) and name.endswith("_skill.py") and Path(name).name == name
                 }
+                self._quarantine_hashes = {}
+            elif isinstance(entries, dict):
+                valid: dict[str, str] = {}
+                for name, digest in entries.items():
+                    if (
+                        isinstance(name, str)
+                        and name.endswith("_skill.py")
+                        and Path(name).name == name
+                        and isinstance(digest, str)
+                        and len(digest) == 64
+                    ):
+                        valid[name] = digest
+                self._quarantine_hashes = valid
+                self.quarantined = set(valid)
+            else:
+                self.quarantined = set()
+                self._quarantine_hashes = {}
         except (FileNotFoundError, OSError, json.JSONDecodeError):
             # Missing/corrupt state is non-fatal; source is still security-scanned
             # before every import, so a blocked skill cannot execute.
             self.quarantined = set()
+            self._quarantine_hashes = {}
 
     def _save_quarantine_state(self) -> None:
         self._quarantine_file.parent.mkdir(parents=True, exist_ok=True)
-        payload = {"version": 1, "quarantined": sorted(self.quarantined)}
+        payload = {"version": 2, "quarantined": dict(sorted(self._quarantine_hashes.items()))}
         temporary = self._quarantine_file.with_suffix(".tmp")
         temporary.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
         temporary.replace(self._quarantine_file)
@@ -63,13 +88,27 @@ class SkillManager:
         self.skills.clear(); self.load_errors.clear()
         folder = self._skills_dir()
         for path in sorted(folder.glob("*_skill.py")):
-            if path.name.startswith("_") or path.name in self.quarantined: continue
+            if path.name.startswith("_"):
+                continue
             try:
                 source = path.read_text(encoding="utf-8")
+                current_hash = self._source_hash(source)
+                if path.name in self.quarantined:
+                    recorded_hash = self._quarantine_hashes.get(path.name)
+                    # A changed source must be re-scanned instead of inheriting
+                    # stale quarantine state. Unsafe changes are still blocked below.
+                    if recorded_hash and recorded_hash != current_hash:
+                        self.quarantined.discard(path.name)
+                        self._quarantine_hashes.pop(path.name, None)
+                        self._save_quarantine_state()
+                    else:
+                        continue
+
                 report = scan_skill(source)
                 if not report.safe:
                     self.load_errors.append({"skill": path.name, "error": "security_validation_failed", "message": "Skill blocked by static security validation.", "attempts": "0"})
                     self.quarantined.add(path.name)
+                    self._quarantine_hashes[path.name] = current_hash
                     self._save_quarantine_state()
                     continue
                 module = self._load_module(path)
@@ -83,6 +122,10 @@ class SkillManager:
                 self.load_errors.append({"skill": path.name, "error": type(exc).__name__, "message": "Skill failed to load.", "attempts": str(count)})
                 if count >= self.quarantine_threshold:
                     self.quarantined.add(path.name)
+                    try:
+                        self._quarantine_hashes[path.name] = self._source_hash(path.read_text(encoding="utf-8"))
+                    except (OSError, UnicodeError):
+                        self._quarantine_hashes[path.name] = ""
                     self._save_quarantine_state()
         return self.skills
 
@@ -96,13 +139,19 @@ class SkillManager:
     def quarantine(self, skill_filename: str) -> bool:
         if not skill_filename or not skill_filename.endswith("_skill.py") or Path(skill_filename).name != skill_filename: return False
         self.quarantined.add(skill_filename)
+        try:
+            self._quarantine_hashes[skill_filename] = self._source_hash((self._skills_dir() / skill_filename).read_text(encoding="utf-8"))
+        except (OSError, UnicodeError):
+            self._quarantine_hashes[skill_filename] = ""
         self.skills = [s for s in self.skills if getattr(s, "__module__", "").split(".")[-1] + ".py" != skill_filename]
         self._save_quarantine_state()
         return True
 
     def unquarantine(self, skill_filename: str) -> bool:
         if skill_filename not in self.quarantined: return False
-        self.quarantined.remove(skill_filename); self.failure_counts.pop(skill_filename, None)
+        self.quarantined.remove(skill_filename)
+        self._quarantine_hashes.pop(skill_filename, None)
+        self.failure_counts.pop(skill_filename, None)
         self._save_quarantine_state()
         return True
 
