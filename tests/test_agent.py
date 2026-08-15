@@ -41,7 +41,7 @@ def test_agent_executes_natural_language_memory_search():
 def test_agent_saves_memory_from_natural_language():
     result = build_agent().execute_query("remember that I like football")
     assert result.tool_name == "remember"
-    assert result.text == "saved:that I like football"
+    assert result.text == "saved:I like football"
 
 
 def test_agent_keeps_unknown_requests_blocked():
