@@ -64,8 +64,11 @@ class NovaAssistant:
                 try: answer=skill.handle(query, {"memory": self.memory, "assistant": self, "health": self.health, "skill_management": self.skill_management})
                 except Exception: answer="That skill failed safely."
             else:
-                planned=self.agent.plan(query)
-                if planned.tool_name or planned.text.startswith("Available tools:"): answer=planned.text
+                # Execute only through the bounded registered-tool layer. High-risk
+                # tools remain behind Agent's confirmation boundary.
+                tool_result = self.agent.execute_query(query)
+                if tool_result.tool_name:
+                    answer = tool_result.text
                 else:
                     personal_context = {
                         "profile": self.profile.summary(),
