@@ -77,3 +77,5 @@ When Nova AJ receives a request it cannot safely handle, the learning engine rec
 ## Security
 
 Never commit API keys. Keep `.env` local. Review any skill before enabling it, especially skills that access files, the operating system, accounts, payments, or external services. Browser automation is intentionally allowlisted.
+
+<!-- CI verification: voice hardware fallback tests -->
