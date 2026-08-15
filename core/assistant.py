@@ -55,7 +55,7 @@ class NovaAssistant:
             skill=self.skills.find(query)
             if skill:
                 try: answer=skill.handle(query, {"memory": self.memory, "assistant": self, "health": self.health, "skill_management": self.skill_management})
-                except Exception as exc: answer=f"That skill failed safely: {exc}"
+                except Exception: answer="That skill failed safely."
             else:
                 planned=self.agent.plan(query)
                 if planned.tool_name or planned.text.startswith("Available tools:"): answer=planned.text
@@ -79,4 +79,4 @@ class NovaAssistant:
                 if not self.listener.wait_for_wake_word(): continue
                 self.refresh_skills(); self.voice_session.run(self.handle)
             except KeyboardInterrupt: self.speaker.speak("Goodbye."); break
-            except Exception as exc: self.speaker.speak(f"I hit a recoverable error: {exc}")
+            except Exception: self.speaker.speak("I hit a recoverable error.")
