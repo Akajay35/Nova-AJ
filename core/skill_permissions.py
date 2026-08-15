@@ -29,6 +29,19 @@ class SkillPermissions:
     def configured(self, skill: str) -> set[str]:
         return set(self._permissions.get(skill, set()))
 
+    def allowed(self, action: str) -> bool:
+        """Compatibility helper for management operations."""
+        return self.allows_management(action)
+
+    def explain(self, action: str) -> str:
+        """Return a stable human-readable explanation for a denied management action."""
+        action = action.strip().lower()
+        if action in {"status", "diagnostics", "list", "refresh"}:
+            return f"Management action '{action}' is allowed."
+        if action == "recover":
+            return "Recovery requires explicit approval."
+        return f"Management action '{action}' is not allowed."
+
     def allows_management(self, action: str, recovery_approved: bool = False) -> bool:
         action = action.strip().lower()
         if action in {"status", "diagnostics", "list", "refresh"}: return True
