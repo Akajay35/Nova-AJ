@@ -1,5 +1,6 @@
 from __future__ import annotations
 import importlib
+import importlib.util
 import inspect
 from pathlib import Path
 from .base_skill import BaseSkill
@@ -15,6 +16,19 @@ class SkillManager:
         self.failure_counts: dict[str, int] = {}
         self.discover()
 
+    def _load_module(self, path: Path):
+        """Load a skill from a package or an explicit skills directory."""
+        package_path = Path(self.package.replace(".", "/"))
+        if package_path.is_dir() and (Path(self.package).is_absolute() or "/" in self.package or "\\" in self.package):
+            module_name = f"_nova_skill_{path.stem}"
+            spec = importlib.util.spec_from_file_location(module_name, path)
+            if spec is None or spec.loader is None:
+                raise ImportError(f"Unable to load skill module: {path.name}")
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            return module
+        return importlib.import_module(f"{self.package}.{path.stem}")
+
     def discover(self) -> list[BaseSkill]:
         self.skills.clear(); self.load_errors.clear()
         folder = Path(self.package.replace(".", "/"))
@@ -27,7 +41,7 @@ class SkillManager:
                     self.load_errors.append({"skill": path.name, "error": "security_validation_failed", "message": "Skill blocked by static security validation.", "attempts": "0"})
                     self.quarantined.add(path.name)
                     continue
-                module = importlib.import_module(f"{self.package}.{path.stem}")
+                module = self._load_module(path)
                 for _, obj in inspect.getmembers(module, inspect.isclass):
                     if issubclass(obj, BaseSkill) and obj is not BaseSkill and obj.__module__ == module.__name__:
                         self.skills.append(obj())
