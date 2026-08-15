@@ -20,7 +20,8 @@ class SkillManagement:
         if not self.permissions.allowed("refresh"):
             self.audit.record("refresh", "denied")
             return {"ok": False, "message": self.permissions.explain("refresh")}
-        self.manager.discover()
+        self.audit.record("discover", "success")
+        self.manager.load()
         status = self.status()
         health = self.health_monitor.check()
         self.audit.record("refresh", "success" if not status["errors"] else "completed_with_errors")
