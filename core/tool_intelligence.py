@@ -23,7 +23,7 @@ class ToolIntelligence:
         "profile": {"profile", "details", "information", "info"},
         "memory": {"memory", "memories", "remember", "recall"},
         "skill": {"skill", "skills"},
-        "system": {"system", "status", "health", "readiness"},
+        "system": {"system", "status", "health", "readiness", "ready", "online", "up"},
         "diagnostic": {"diagnostic", "diagnostics", "debug", "startup"},
         "refresh": {"refresh", "reload", "update"},
         "tool": {"tool", "tools", "capability", "capabilities"},
