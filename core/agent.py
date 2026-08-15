@@ -43,12 +43,14 @@ class Agent:
         if lowered in {"refresh skills", "reload skills", "update skills"}:
             return "refresh_skills", {}
 
-        for prefix in ("remember ", "remember that ", "save this: "):
+        # Match longer phrases before shorter prefixes so
+        # "remember that ..." does not become "that ...".
+        for prefix in ("remember that ", "remember ", "save this: "):
             if lowered.startswith(prefix):
                 value = text[len(prefix):].strip()
                 return ("remember", {"text": value}) if value else (None, {})
 
-        for prefix in ("search memory for ", "search my memory for ", "find in memory "):
+        for prefix in ("search my memory for ", "search memory for ", "find in memory "):
             if lowered.startswith(prefix):
                 value = text[len(prefix):].strip()
                 return ("search_memory", {"term": value}) if value else (None, {})
