@@ -9,7 +9,11 @@ class AlertDelivery:
 
     def __init__(self, queue: NotificationQueue):
         self.queue = queue
-        self._queued_fingerprints: set[str] = set()
+        self._queued_fingerprints: set[str] = {
+            str(item.get("fingerprint", ""))
+            for item in queue.list()
+            if item.get("fingerprint")
+        }
 
     def enqueue(self, alert: dict) -> dict | None:
         routed = route_alert(alert)
