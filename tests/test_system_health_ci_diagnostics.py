@@ -10,7 +10,17 @@ class FakeQueue:
 def test_system_health_reports_ci_readiness(tmp_path):
     workflow = tmp_path / ".github" / "workflows"
     workflow.mkdir(parents=True)
-    (workflow / "tests.yml").write_text("name: tests\n", encoding="utf-8")
+    (workflow / "tests.yml").write_text(
+        """name: Nova AJ tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+""",
+        encoding="utf-8",
+    )
     tests = tmp_path / "tests"
     tests.mkdir()
     (tests / "test_example.py").write_text("def test_example(): pass\n", encoding="utf-8")
@@ -21,6 +31,11 @@ def test_system_health_reports_ci_readiness(tmp_path):
     assert status == 200
     assert payload["ci"]["workflow_present"] is True
     assert payload["ci"]["tests_present"] is True
+    assert payload["ci"]["triggers"] == {
+        "push_main": True,
+        "pull_request_main": True,
+        "manual_dispatch": True,
+    }
     assert payload["ci"]["ready"] is True
     assert payload["ci"]["test_command"] == "python -m pytest -q"
 
