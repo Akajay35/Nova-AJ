@@ -1,0 +1,3 @@
+CI verification marker for Nova AJ v232.
+
+Verify the error-handling changes from commit 7f431187.
