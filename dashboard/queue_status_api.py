@@ -16,3 +16,26 @@ def status_payload(queue: NotificationQueue) -> dict:
             "failed": health["failed"],
         },
     }
+
+
+def notification_queue_status(queue: NotificationQueue) -> dict:
+    """Return the normalized queue health shape used by the system-health view."""
+    if hasattr(queue, "status"):
+        value = queue.status()
+        return {
+            "health": value.get("health", "unknown"),
+            "counts": value.get("counts", {}),
+            "total": value.get("total", 0),
+        }
+
+    health = queue_health(queue)
+    return {
+        "health": health["state"],
+        "counts": {
+            "queued": health["queued"],
+            "pending": health["pending"],
+            "delivered": health["delivered"],
+            "failed": health["failed"],
+        },
+        "total": health["total"],
+    }
