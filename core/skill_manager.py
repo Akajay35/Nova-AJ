@@ -3,6 +3,7 @@ import importlib
 import inspect
 from pathlib import Path
 from .base_skill import BaseSkill
+from .skill_security import scan_skill
 
 class SkillManager:
     def __init__(self, package: str = "skills", quarantine_threshold: int = 2):
@@ -20,6 +21,12 @@ class SkillManager:
         for path in sorted(folder.glob("*_skill.py")):
             if path.name.startswith("_") or path.name in self.quarantined: continue
             try:
+                source = path.read_text(encoding="utf-8")
+                report = scan_skill(source)
+                if not report.safe:
+                    self.load_errors.append({"skill": path.name, "error": "security_validation_failed", "message": "Skill blocked by static security validation.", "attempts": "0"})
+                    self.quarantined.add(path.name)
+                    continue
                 module = importlib.import_module(f"{self.package}.{path.stem}")
                 for _, obj in inspect.getmembers(module, inspect.isclass):
                     if issubclass(obj, BaseSkill) and obj is not BaseSkill and obj.__module__ == module.__name__:
@@ -28,7 +35,7 @@ class SkillManager:
             except Exception as exc:
                 count = self.failure_counts.get(path.name, 0) + 1
                 self.failure_counts[path.name] = count
-                self.load_errors.append({"skill": path.name, "error": type(exc).__name__, "message": str(exc), "attempts": str(count)})
+                self.load_errors.append({"skill": path.name, "error": type(exc).__name__, "message": "Skill failed to load.", "attempts": str(count)})
                 if count >= self.quarantine_threshold: self.quarantined.add(path.name)
         return self.skills
 
