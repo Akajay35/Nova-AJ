@@ -12,6 +12,7 @@ def test_skill_manager_blocks_dangerous_skill_before_import(tmp_path):
     (skills_dir / "__init__.py").write_text("", encoding="utf-8")
 
     manager = SkillManager(str(skills_dir), quarantine_threshold=2)
+    manager.load()
 
     assert manager.names() == []
     assert "bad_skill.py" in manager.quarantined_skills()
@@ -30,9 +31,11 @@ def test_skill_manager_quarantine_survives_restart(tmp_path):
     )
 
     first = SkillManager(str(skills_dir))
+    first.load()
     assert "bad_skill.py" in first.quarantined_skills()
 
     second = SkillManager(str(skills_dir))
+    second.load()
     assert "bad_skill.py" in second.quarantined_skills()
     assert second.names() == []
 
@@ -45,6 +48,7 @@ def test_quarantine_state_binds_to_source_hash(tmp_path):
     skill.write_text("import subprocess\n\nclass BadSkill:\n    pass\n", encoding="utf-8")
 
     manager = SkillManager(str(skills_dir))
+    manager.load()
     state = json.loads((skills_dir / ".nova_quarantine.json").read_text(encoding="utf-8"))
     assert state["version"] == 2
     assert len(state["quarantined"]["bad_skill.py"]) == 64
@@ -62,6 +66,7 @@ def test_quarantine_state_binds_to_source_hash(tmp_path):
         encoding="utf-8",
     )
     restarted = SkillManager(str(skills_dir))
+    restarted.load()
     assert restarted.names() == ["safe"]
     assert "bad_skill.py" not in restarted.quarantined_skills()
 
@@ -76,9 +81,11 @@ def test_skill_manager_unquarantine_persists(tmp_path):
     )
 
     manager = SkillManager(str(skills_dir))
+    manager.load()
     assert manager.unquarantine("bad_skill.py")
 
     restarted = SkillManager(str(skills_dir))
+    restarted.load()
     assert "bad_skill.py" in restarted.quarantined_skills()
 
 
@@ -98,5 +105,6 @@ def test_skill_manager_loads_safe_skill(tmp_path):
     )
 
     manager = SkillManager(str(skills_dir))
+    manager.load()
 
     assert manager.names() == ["safe"]

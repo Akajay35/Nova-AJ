@@ -20,10 +20,12 @@ from .assistant_router import AssistantRouter
 from .health_check import HealthCheck
 from config import ASSISTANT_NAME, WAKE_WORD, VOICE_MAX_TURNS
 
+
 class NovaAssistant:
     """Main application facade coordinating voice, routing, skills, memory, learning and tools."""
     def __init__(self, router=None):
         self.listener = VoiceListener(); self.speaker = Speaker(); self.skills = SkillManager()
+        self.skills.load()
         self.skill_permissions = SkillPermissions()
         self.skill_management = SkillManagement(self.skills, self.skill_permissions)
         self.memory = MemoryStore(); self.profile = ProfileStore(); self.learning = SkillGrowth()
@@ -38,6 +40,11 @@ class NovaAssistant:
         self.tools.register(Tool(name="list_skills", description="List installed assistant skills", handler=lambda: ", ".join(self.skills.names()) or "No skills installed."))
         self.tools.register(Tool(name="list_tools", description="List explicitly registered agent tools", handler=lambda: ", ".join(self.tools.names()) or "No tools registered."))
         self.tools.register(Tool(name="show_profile", description="Show the user's explicit saved profile", handler=lambda: str(self.profile.summary())))
+        self.tools.register(Tool(name="show_memory", description="Show recent saved personal memories", handler=lambda: str(self.memory.recent(10))))
+        self.tools.register(Tool(name="search_memory", description="Search saved personal memories", handler=lambda term: str(self.memory.search(term))))
+        self.tools.register(Tool(name="remember", description="Save an explicit personal memory", handler=lambda text, kind="fact": self.memory.remember(text, kind)))
+        self.tools.register(Tool(name="forget_memory", description="Forget a specific saved memory by id", handler=lambda memory_id: self.memory.forget(memory_id)))
+        self.tools.register(Tool(name="forget_matching_memory", description="Forget saved memories matching text", handler=lambda term: self.memory.forget_matching(term)))
         self.tools.register(Tool(name="skill_status", description="Show active, quarantined, and failed skills", handler=lambda: str(self.skill_management.status())))
         self.tools.register(Tool(name="refresh_skills", description="Refresh the skill registry", handler=lambda: str(self.skill_management.refresh())))
         self.tools.register(Tool(name="system_status", description="Show read-only Nova system readiness and skill health", handler=lambda: self.system_status.summary()))
@@ -60,7 +67,11 @@ class NovaAssistant:
                 planned=self.agent.plan(query)
                 if planned.tool_name or planned.text.startswith("Available tools:"): answer=planned.text
                 else:
-                    answer=self.brain.respond(query, self.conversation.recent())
+                    personal_context = {
+                        "profile": self.profile.summary(),
+                        "relevant_memory": self.memory.search(query)[:6],
+                    }
+                    answer=self.brain.respond(query, self.conversation.recent(), personal_context)
                     if not answer:
                         proposal=self.learning.record_missing(query); answer=f"I don't have that skill yet. I recorded a skill proposal at {proposal}."
         self.conversation.add("assistant", answer); return answer

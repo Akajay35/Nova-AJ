@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import hashlib
 import importlib
 import importlib.util
@@ -8,7 +9,10 @@ from pathlib import Path
 from .base_skill import BaseSkill
 from .skill_security import scan_skill
 
+
 class SkillManager:
+    """Discovers Python skills without executing them until explicitly loaded."""
+
     def __init__(self, package: str = "skills", quarantine_threshold: int = 2):
         self.package = package
         self.quarantine_threshold = max(1, quarantine_threshold)
@@ -19,7 +23,6 @@ class SkillManager:
         self.failure_counts: dict[str, int] = {}
         self._quarantine_file = self._state_path()
         self._load_quarantine_state()
-        self.discover()
 
     def _skills_dir(self) -> Path:
         return Path(self.package.replace(".", "/"))
@@ -36,7 +39,6 @@ class SkillManager:
             data = json.loads(self._quarantine_file.read_text(encoding="utf-8"))
             entries = data.get("quarantined", {})
             if isinstance(entries, list):
-                # Backward-compatible migration from the original filename-only format.
                 self.quarantined = {
                     name for name in entries
                     if isinstance(name, str) and name.endswith("_skill.py") and Path(name).name == name
@@ -59,8 +61,6 @@ class SkillManager:
                 self.quarantined = set()
                 self._quarantine_hashes = {}
         except (FileNotFoundError, OSError, json.JSONDecodeError):
-            # Missing/corrupt state is non-fatal; source is still security-scanned
-            # before every import, so a blocked skill cannot execute.
             self.quarantined = set()
             self._quarantine_hashes = {}
 
@@ -71,8 +71,15 @@ class SkillManager:
         temporary.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
         temporary.replace(self._quarantine_file)
 
+    def discover(self) -> list[Path]:
+        """Return candidate skill files without importing or executing them."""
+        folder = self._skills_dir()
+        return [
+            path for path in sorted(folder.glob("*_skill.py"))
+            if path.is_file() and not path.name.startswith("_")
+        ]
+
     def _load_module(self, path: Path):
-        """Load a skill from a package or an explicit skills directory."""
         package_path = self._skills_dir()
         if package_path.is_dir() and (Path(self.package).is_absolute() or "/" in self.package or "\\" in self.package):
             module_name = f"_nova_skill_{path.stem}"
@@ -84,19 +91,16 @@ class SkillManager:
             return module
         return importlib.import_module(f"{self.package}.{path.stem}")
 
-    def discover(self) -> list[BaseSkill]:
-        self.skills.clear(); self.load_errors.clear()
-        folder = self._skills_dir()
-        for path in sorted(folder.glob("*_skill.py")):
-            if path.name.startswith("_"):
-                continue
+    def load(self) -> list[BaseSkill]:
+        """Security-scan and explicitly load discovered skills."""
+        self.skills.clear()
+        self.load_errors.clear()
+        for path in self.discover():
             try:
                 source = path.read_text(encoding="utf-8")
                 current_hash = self._source_hash(source)
                 if path.name in self.quarantined:
                     recorded_hash = self._quarantine_hashes.get(path.name)
-                    # A changed source must be re-scanned instead of inheriting
-                    # stale quarantine state. Unsafe changes are still blocked below.
                     if recorded_hash and recorded_hash != current_hash:
                         self.quarantined.discard(path.name)
                         self._quarantine_hashes.pop(path.name, None)
@@ -111,6 +115,7 @@ class SkillManager:
                     self._quarantine_hashes[path.name] = current_hash
                     self._save_quarantine_state()
                     continue
+
                 module = self._load_module(path)
                 for _, obj in inspect.getmembers(module, inspect.isclass):
                     if issubclass(obj, BaseSkill) and obj is not BaseSkill and obj.__module__ == module.__name__:
@@ -133,11 +138,15 @@ class SkillManager:
         matches = [s for s in self.skills if s.matches(query)]
         return matches[0] if matches else None
 
-    def names(self) -> list[str]: return [s.name for s in self.skills]
-    def errors(self) -> list[dict[str, str]]: return list(self.load_errors)
+    def names(self) -> list[str]:
+        return [s.name for s in self.skills]
+
+    def errors(self) -> list[dict[str, str]]:
+        return list(self.load_errors)
 
     def quarantine(self, skill_filename: str) -> bool:
-        if not skill_filename or not skill_filename.endswith("_skill.py") or Path(skill_filename).name != skill_filename: return False
+        if not skill_filename or not skill_filename.endswith("_skill.py") or Path(skill_filename).name != skill_filename:
+            return False
         self.quarantined.add(skill_filename)
         try:
             self._quarantine_hashes[skill_filename] = self._source_hash((self._skills_dir() / skill_filename).read_text(encoding="utf-8"))
@@ -148,11 +157,13 @@ class SkillManager:
         return True
 
     def unquarantine(self, skill_filename: str) -> bool:
-        if skill_filename not in self.quarantined: return False
+        if skill_filename not in self.quarantined:
+            return False
         self.quarantined.remove(skill_filename)
         self._quarantine_hashes.pop(skill_filename, None)
         self.failure_counts.pop(skill_filename, None)
         self._save_quarantine_state()
         return True
 
-    def quarantined_skills(self) -> list[str]: return sorted(self.quarantined)
+    def quarantined_skills(self) -> list[str]:
+        return sorted(self.quarantined)
