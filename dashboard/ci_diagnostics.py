@@ -12,6 +12,7 @@ def diagnose_ci(repo_root: str | Path = ".") -> dict:
     push_main = "push:" in workflow_text and "branches: [main]" in workflow_text
     pull_request_main = "pull_request:" in workflow_text and "branches: [main]" in workflow_text
     manual = "workflow_dispatch:" in workflow_text
+    ready = workflow.is_file() and bool(test_files) and push_main and pull_request_main and manual
     return {
         "workflow_present": workflow.is_file(),
         "workflow_path": str(workflow),
@@ -23,5 +24,6 @@ def diagnose_ci(repo_root: str | Path = ".") -> dict:
             "pull_request_main": pull_request_main,
             "manual_dispatch": manual,
         },
-        "ready": workflow.is_file() and bool(test_files) and push_main and pull_request_main and manual,
+        "ready": ready,
+        "status": "ready" if ready else "missing",
     }
