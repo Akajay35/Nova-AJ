@@ -67,7 +67,11 @@ class NovaAssistant:
                 planned=self.agent.plan(query)
                 if planned.tool_name or planned.text.startswith("Available tools:"): answer=planned.text
                 else:
-                    answer=self.brain.respond(query, self.conversation.recent())
+                    personal_context = {
+                        "profile": self.profile.summary(),
+                        "relevant_memory": self.memory.search(query)[:6],
+                    }
+                    answer=self.brain.respond(query, self.conversation.recent(), personal_context)
                     if not answer:
                         proposal=self.learning.record_missing(query); answer=f"I don't have that skill yet. I recorded a skill proposal at {proposal}."
         self.conversation.add("assistant", answer); return answer
