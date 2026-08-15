@@ -93,3 +93,7 @@ class ToolIntelligence:
                 best = ToolMatch(name, {}, score)
 
         return best if best.score >= self.threshold else ToolMatch(None, {})
+
+    def plan(self, query: str) -> ToolMatch:
+        """Return the same conservative match used by Agent.plan()."""
+        return self.match(query)
