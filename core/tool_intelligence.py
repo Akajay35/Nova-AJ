@@ -26,6 +26,7 @@ class ToolIntelligence:
         "system": {"system", "status", "health", "readiness", "ready", "online", "up"},
         "current_time": {"time", "clock", "timestamp", "now"},
         "calculate": {"calculate", "calculator", "compute", "math", "sum"},
+        "web_search": {"search", "web", "internet", "online", "lookup", "find", "wiki", "wikipedia"},
     }
 
     def __init__(self, tools: ToolRegistry) -> None:
@@ -74,13 +75,21 @@ class ToolIntelligence:
         for prefix in ("calculate ", "compute ", "what is ", "what's "):
             if lowered.startswith(prefix) and self.tools.get("calculate"):
                 expression = text[len(prefix):].strip().rstrip("?")
-                # Require an arithmetic operator or a numeric expression so
-                # ordinary conversational questions aren't misclassified.
                 if expression and re.search(r"\d", expression) and re.search(r"[+\-*/%()]", expression):
                     return ToolMatch("calculate", {"expression": expression}, 100)
 
         if lowered in {"what time is it", "what is the time", "current time", "tell me the time"} and self.tools.get("current_time"):
             return ToolMatch("current_time", {}, 100)
+
+        for prefix in (
+            "search the web for ", "search web for ", "search the internet for ",
+            "look up ", "look this up: ", "find information about ", "find info about ",
+            "search wikipedia for ", "search wikipedia ",
+        ):
+            if lowered.startswith(prefix) and self.tools.get("web_search"):
+                value = text[len(prefix):].strip().rstrip("?")
+                if value:
+                    return ToolMatch("web_search", {"query": value}, 100)
 
         if lowered.startswith("use "):
             parts = text[4:].split(maxsplit=1)
