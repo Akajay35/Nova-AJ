@@ -16,17 +16,10 @@ def history_handlers(history: ConversationHistory) -> dict[str, Any]:
         except (TypeError, ValueError):
             window = 30
         cutoff = datetime.now(timezone.utc) - timedelta(days=window)
-        results = []
-        for entry in history.recent(history.limit):
-            try:
-                timestamp = datetime.fromisoformat(entry["timestamp"])
-            except (KeyError, TypeError, ValueError):
-                continue
-            if timestamp < cutoff:
-                continue
-            if cleaned in str(entry.get("text", "")).lower():
-                results.append(entry)
-        return results
+        return [
+            entry for entry in history.recent(history.limit)
+            if _timestamp(entry) >= cutoff and cleaned in str(entry.get("text", "")).lower()
+        ]
 
     def history_for_day(day: str = "today") -> list[dict[str, Any]]:
         normalized = day.strip().lower()
@@ -46,3 +39,11 @@ def history_handlers(history: ConversationHistory) -> dict[str, Any]:
         ]
 
     return {"search_history": search_history, "history_for_day": history_for_day}
+
+
+def _timestamp(entry: dict[str, Any]) -> datetime:
+    try:
+        value = datetime.fromisoformat(str(entry["timestamp"]))
+        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    except (KeyError, TypeError, ValueError):
+        return datetime.min.replace(tzinfo=timezone.utc)
