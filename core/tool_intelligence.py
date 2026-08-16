@@ -22,6 +22,10 @@ class ToolIntelligence:
         "is", "me", "my", "of", "please", "show", "the", "to", "what", "you",
     }
 
+    SYNONYMS = {
+        "system": {"system", "status", "health", "readiness", "ready", "online", "up"},
+    }
+
     def __init__(self, tools: ToolRegistry) -> None:
         self.tools = tools
 
@@ -31,6 +35,15 @@ class ToolIntelligence:
             token for token in re.findall(r"[a-z0-9_]+", text.lower())
             if token not in cls.STOP_WORDS and len(token) > 1
         }
+
+    @classmethod
+    def _expanded_tokens(cls, text: str) -> set[str]:
+        tokens = cls._tokens(text)
+        expanded = set(tokens)
+        for canonical, synonyms in cls.SYNONYMS.items():
+            if tokens & synonyms:
+                expanded.add(canonical)
+        return expanded
 
     def match(self, query: str) -> ToolMatch:
         text = query.strip()
@@ -57,11 +70,11 @@ class ToolIntelligence:
             if parts and self.tools.get(parts[0]):
                 return ToolMatch(parts[0], {"text": parts[1]} if len(parts) == 2 else {}, 100)
 
-        query_tokens = self._tokens(text)
+        query_tokens = self._expanded_tokens(text)
         candidates: list[ToolMatch] = []
         for tool in self.tools.describe():
-            name_tokens = self._tokens(tool["name"].replace("_", " "))
-            desc_tokens = self._tokens(tool["description"])
+            name_tokens = self._expanded_tokens(tool["name"].replace("_", " "))
+            desc_tokens = self._expanded_tokens(tool["description"])
             overlap = query_tokens & (name_tokens | desc_tokens)
             name_overlap = query_tokens & name_tokens
             score = len(overlap) + (2 * len(name_overlap))
