@@ -53,13 +53,25 @@ class ToolIntelligence:
 
         # Argument extraction is explicit for user-value tools; arbitrary
         # function arguments are never guessed.
-        for prefix in ("remember that ", "remember ", "save this: "):
+        for prefix in (
+            "please remember that ",
+            "remember that ",
+            "please remember ",
+            "remember ",
+            "save this: ",
+        ):
             if lowered.startswith(prefix) and self.tools.get("remember"):
                 value = text[len(prefix):].strip()
                 if value:
                     return ToolMatch("remember", {"text": value}, 100)
 
-        for prefix in ("search my memory for ", "search memory for ", "find in memory "):
+        for prefix in (
+            "can you search my memory for ",
+            "search my memory for ",
+            "can you search memory for ",
+            "search memory for ",
+            "find in memory ",
+        ):
             if lowered.startswith(prefix) and self.tools.get("search_memory"):
                 value = text[len(prefix):].strip()
                 if value:
