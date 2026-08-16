@@ -51,6 +51,7 @@ class NovaAssistant:
         self.tools.register(Tool(name="refresh_skills", description="Refresh the skill registry", handler=lambda: str(self.skill_management.refresh())))
         self.tools.register(Tool(name="system_status", description="Show read-only Nova system readiness and skill health", handler=lambda: self.system_status.summary()))
         self.tools.register(Tool(name="startup_diagnostics", description="Explain current startup readiness issues", handler=lambda: self.startup_report.summary()))
+        self.tools.register(Tool(name="show_audit", description="Show recent Nova tool and confirmation audit events", handler=lambda: str(self.agent.audit.recent(20))))
         builtins = builtin_handlers()
         self.tools.register(Tool(name="current_time", description="Show the current UTC time", handler=builtins["current_time"]))
         self.tools.register(Tool(name="calculate", description="Calculate a basic arithmetic expression safely", handler=builtins["calculate"]))
@@ -72,7 +73,6 @@ class NovaAssistant:
         query = query.strip()
         if not query: return "I didn't catch that."
         self.conversation.add("user", query)
-
         if self.agent.confirmation.pending is not None:
             if self._is_confirmation(query):
                 result = self.agent.confirm_pending(); answer = result.text
@@ -80,7 +80,6 @@ class NovaAssistant:
             if self._is_cancellation(query):
                 result = self.agent.cancel_pending(); answer = result.text
                 self.conversation.add("assistant", answer); return answer
-
         resolved_query = self.conversation.resolve(query)
         routed = self.router.route(resolved_query)
         if routed.intent not in {"chat", "learning"} and routed.response is not None:
