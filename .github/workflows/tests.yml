@@ -2,7 +2,7 @@ name: Nova AJ tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, v280-history-search]
   pull_request:
     branches: [main]
   workflow_dispatch:
