@@ -2,7 +2,7 @@ import pytest
 
 from core.tool_intelligence import ToolIntelligence
 from core.tool_registry import Tool, ToolRegistry
-from core.web_tools import web_search
+from core.web_tools import _clean_snippet, web_search
 
 
 def test_web_search_rejects_empty_query():
@@ -13,6 +13,15 @@ def test_web_search_rejects_empty_query():
 def test_web_search_rejects_long_query():
     with pytest.raises(ValueError):
         web_search("x" * 201)
+
+
+def test_web_search_rejects_invalid_limit():
+    with pytest.raises(ValueError):
+        web_search("Nova", limit="not-a-number")
+
+
+def test_web_snippet_strips_markup():
+    assert _clean_snippet('<span class="searchmatch">Nova</span> assistant') == "Nova assistant"
 
 
 def test_tool_intelligence_extracts_web_query():
