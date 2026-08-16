@@ -12,6 +12,7 @@ from .learning import SkillGrowth
 from .ai_provider import AIProvider
 from .conversation import ConversationContext
 from .conversation_history import ConversationHistory
+from .history_tools import history_handlers
 from .agent import Agent
 from .agent_brain import AgentBrain
 from .tool_registry import Tool, ToolRegistry
@@ -55,6 +56,9 @@ class NovaAssistant:
         self.tools.register(Tool(name="startup_diagnostics", description="Explain current startup readiness issues", handler=lambda: self.startup_report.summary()))
         self.tools.register(Tool(name="show_audit", description="Show recent Nova tool and confirmation audit events", handler=lambda: str(self.agent.audit.recent(20))))
         self.tools.register(Tool(name="show_history", description="Show recent persistent conversation history", handler=lambda: str(self.history.recent(20))))
+        history = history_handlers(self.history)
+        self.tools.register(Tool(name="search_history", description="Search recent persistent conversations by words or topic", handler=history["search_history"]))
+        self.tools.register(Tool(name="history_for_day", description="Show persistent conversations from today, yesterday, or a specific date", handler=history["history_for_day"]))
         self.tools.register(Tool(name="clear_history", description="Clear persistent conversation history", handler=lambda: self.history.clear() or "Conversation history cleared.", risk_level="medium"))
         profiles = profile_handlers(self.profile)
         self.tools.register(Tool(name="set_preference", description="Save an explicit user preference such as language, voice, or response style", handler=profiles["set_preference"]))
