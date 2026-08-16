@@ -51,3 +51,15 @@ def test_tool_intelligence_extracts_yesterday_history():
     match = ToolIntelligence(registry).match("what did we discuss yesterday?")
     assert match.name == "history_for_day"
     assert match.arguments == {"day": "yesterday"}
+
+
+def test_search_history_ignores_malformed_timestamps(tmp_path):
+    history = ConversationHistory(tmp_path / "history.json", limit=10)
+    history.add("user", "valid football conversation")
+    entries = history._read()
+    entries.insert(0, {"role": "user", "text": "broken timestamp", "timestamp": "not-a-date"})
+    history._write(entries)
+
+    result = history_handlers(history)["search_history"]("football")
+    assert len(result) == 1
+    assert result[0]["text"] == "valid football conversation"
