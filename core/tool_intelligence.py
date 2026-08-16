@@ -32,6 +32,8 @@ class ToolIntelligence:
         "add_project": {"project", "projects"},
         "add_note": {"note", "notes"},
         "remove_profile_item": {"remove", "delete", "forget", "profile"},
+        "search_history": {"history", "conversation", "conversations", "discussed", "talked", "said", "remember"},
+        "history_for_day": {"history", "conversation", "yesterday", "today", "discussed", "talked"},
     }
 
     def __init__(self, tools: ToolRegistry) -> None:
@@ -68,6 +70,29 @@ class ToolIntelligence:
                 if value:
                     return ToolMatch("remember", {"text": value}, 100)
 
+        history_search_patterns = (
+            r"^(?:what did we|what have we) (?:discuss|talk) about (.+?)(?: recently| lately)?\??$",
+            r"^(?:search|find) (?:my )?(?:conversation|chat|history) (?:for|about) (.+?)\??$",
+            r"^(?:what did i|what have i) (?:say|tell you) about (.+?)\??$",
+        )
+        if self.tools.get("search_history"):
+            for pattern in history_search_patterns:
+                match = re.match(pattern, lowered)
+                if match and match.group(1).strip():
+                    return ToolMatch("search_history", {"term": match.group(1).strip()}, 100)
+
+        if self.tools.get("history_for_day"):
+            for prefix, day in (
+                ("what did we discuss yesterday", "yesterday"),
+                ("what did we talk about yesterday", "yesterday"),
+                ("show yesterday's conversation", "yesterday"),
+                ("show yesterday conversation", "yesterday"),
+                ("what did we discuss today", "today"),
+                ("show today's conversation", "today"),
+            ):
+                if lowered.rstrip("?").strip() == prefix:
+                    return ToolMatch("history_for_day", {"day": day}, 100)
+
         for prefix in (
             "can you search my memory for ", "search my memory for ",
             "can you search memory for ", "search memory for ", "find in memory ",
@@ -98,7 +123,7 @@ class ToolIntelligence:
 
         preference_patterns = (
             r"^(?:please )?set (?:my )?([a-z_ ]+?) to (.+)$",
-            r"^(?:please )?make (?:my )?([a-z_ ]+?) (.+)$",
+            r"^(?:please )?make (?:my )?([a-z_ ]+) (.+)$",
             r"^(?:please )?remember my preferred ([a-z_ ]+?) is (.+)$",
             r"^(?:please )?i prefer ([a-z_ ]+?) for ([a-z_ ]+)$",
         )
