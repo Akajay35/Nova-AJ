@@ -61,34 +61,39 @@ class NovaAssistant:
         return self.startup_report.run()
 
     def handle(self, query: str) -> str:
-        query=query.strip()
+        query = query.strip()
         if not query: return "I didn't catch that."
-        self.conversation.add("user", query); routed=self.router.route(query)
-        if routed.intent not in {"chat", "learning"} and routed.response is not None: answer=str(routed.response)
+        self.conversation.add("user", query)
+        resolved_query = self.conversation.resolve(query)
+        routed = self.router.route(resolved_query)
+        if routed.intent not in {"chat", "learning"} and routed.response is not None:
+            answer = str(routed.response)
         else:
-            skill=self.skills.find(query)
+            skill = self.skills.find(resolved_query)
             if skill:
-                try: answer=skill.handle(query, {"memory": self.memory, "assistant": self, "health": self.health, "skill_management": self.skill_management})
-                except Exception: answer="That skill failed safely."
+                try: answer = skill.handle(resolved_query, {"memory": self.memory, "assistant": self, "health": self.health, "skill_management": self.skill_management})
+                except Exception: answer = "That skill failed safely."
             else:
-                tool_result = self.agent.execute_query(query)
+                tool_result = self.agent.execute_query(resolved_query)
                 if tool_result.tool_name:
                     answer = tool_result.text
+                    self.conversation.observe_tool_result(tool_result.tool_name, tool_result.text)
                 else:
                     personal_context = {
                         "profile": self.profile.summary(),
-                        "relevant_memory": self.memory.search(query)[:6],
+                        "relevant_memory": self.memory.search(resolved_query)[:6],
                     }
-                    answer=self.brain.respond(query, self.conversation.recent(), personal_context)
+                    answer = self.brain.respond(resolved_query, self.conversation.recent(), personal_context)
                     if not answer:
-                        proposal=self.learning.record_missing(query); answer=f"I don't have that skill yet. I recorded a skill proposal at {proposal}."
+                        proposal = self.learning.record_missing(resolved_query)
+                        answer = f"I don't have that skill yet. I recorded a skill proposal at {proposal}."
         self.conversation.add("assistant", answer); return answer
 
     def refresh_skills(self) -> list[str]:
         self.skill_management.refresh(); return self.skills.names()
 
     def run(self):
-        diagnostics=self.startup_diagnostics()
+        diagnostics = self.startup_diagnostics()
         if not diagnostics["ready"]:
             self.speaker.speak(self.startup_report.summary())
         else:
