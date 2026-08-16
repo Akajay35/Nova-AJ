@@ -51,7 +51,7 @@ class Agent:
             return AgentResult(f"The tool failed safely: {exc}", tool_name=tool.name)
 
     def execute_query(self, query: str, *, confirm: bool = False) -> AgentResult:
-        """Select and execute a clearly matched registered tool."""
+        """Select, authorize, and execute a registered tool."""
         match = self.intelligence.match(query)
         if match.name is None:
             return AgentResult("I couldn't safely identify a registered tool for that request.")
