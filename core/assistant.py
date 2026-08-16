@@ -60,10 +60,27 @@ class NovaAssistant:
     def startup_diagnostics(self) -> dict[str, object]:
         return self.startup_report.run()
 
+    @staticmethod
+    def _is_confirmation(query: str) -> bool:
+        return query.strip().lower() in {"yes", "y", "confirm", "do it", "go ahead", "okay", "ok"}
+
+    @staticmethod
+    def _is_cancellation(query: str) -> bool:
+        return query.strip().lower() in {"no", "n", "cancel", "stop", "don't", "do not"}
+
     def handle(self, query: str) -> str:
         query = query.strip()
         if not query: return "I didn't catch that."
         self.conversation.add("user", query)
+
+        if self.agent.confirmation.pending is not None:
+            if self._is_confirmation(query):
+                result = self.agent.confirm_pending(); answer = result.text
+                self.conversation.add("assistant", answer); return answer
+            if self._is_cancellation(query):
+                result = self.agent.cancel_pending(); answer = result.text
+                self.conversation.add("assistant", answer); return answer
+
         resolved_query = self.conversation.resolve(query)
         routed = self.router.route(resolved_query)
         if routed.intent not in {"chat", "learning"} and routed.response is not None:
@@ -79,10 +96,7 @@ class NovaAssistant:
                     answer = tool_result.text
                     self.conversation.observe_tool_result(tool_result.tool_name, tool_result.text)
                 else:
-                    personal_context = {
-                        "profile": self.profile.summary(),
-                        "relevant_memory": self.memory.search(resolved_query)[:6],
-                    }
+                    personal_context = {"profile": self.profile.summary(), "relevant_memory": self.memory.search(resolved_query)[:6]}
                     answer = self.brain.respond(resolved_query, self.conversation.recent(), personal_context)
                     if not answer:
                         proposal = self.learning.record_missing(resolved_query)
