@@ -11,6 +11,7 @@ from .memory import MemoryStore
 from .learning import SkillGrowth
 from .ai_provider import AIProvider
 from .conversation import ConversationContext
+from .conversation_history import ConversationHistory
 from .agent import Agent
 from .agent_brain import AgentBrain
 from .tool_registry import Tool, ToolRegistry
@@ -32,9 +33,9 @@ class NovaAssistant:
         self.skill_permissions = SkillPermissions()
         self.skill_management = SkillManagement(self.skills, self.skill_permissions)
         self.memory = MemoryStore(); self.profile = ProfileStore(); self.learning = SkillGrowth()
-        self.ai = AIProvider(); self.brain = AgentBrain(self.ai); self.conversation = ConversationContext(); self.tools = ToolRegistry()
+        self.ai = AIProvider(); self.brain = AgentBrain(self.ai); self.conversation = ConversationContext(); self.history = ConversationHistory(); self.tools = ToolRegistry()
         self._register_tools(); self.agent = Agent(self.tools); self.router = router or AssistantRouter()
-        self.health = HealthCheck({"listener": self.listener, "speaker": self.speaker, "skills": self.skills, "memory": self.memory, "profile": self.profile, "learning": self.learning, "ai": self.ai, "brain": self.brain, "conversation": self.conversation, "tools": self.tools, "agent": self.agent, "router": self.router})
+        self.health = HealthCheck({"listener": self.listener, "speaker": self.speaker, "skills": self.skills, "memory": self.memory, "profile": self.profile, "learning": self.learning, "ai": self.ai, "brain": self.brain, "conversation": self.conversation, "history": self.history, "tools": self.tools, "agent": self.agent, "router": self.router})
         self.system_status = SystemStatus(self)
         self.startup_report = StartupDiagnostics(self)
         self.voice_session = VoiceSession(self.listener, self.speaker, max_turns=VOICE_MAX_TURNS)
@@ -53,6 +54,8 @@ class NovaAssistant:
         self.tools.register(Tool(name="system_status", description="Show read-only Nova system readiness and skill health", handler=lambda: self.system_status.summary()))
         self.tools.register(Tool(name="startup_diagnostics", description="Explain current startup readiness issues", handler=lambda: self.startup_report.summary()))
         self.tools.register(Tool(name="show_audit", description="Show recent Nova tool and confirmation audit events", handler=lambda: str(self.agent.audit.recent(20))))
+        self.tools.register(Tool(name="show_history", description="Show recent persistent conversation history", handler=lambda: str(self.history.recent(20))))
+        self.tools.register(Tool(name="clear_history", description="Clear persistent conversation history", handler=lambda: self.history.clear() or "Conversation history cleared.", risk_level="medium"))
         profiles = profile_handlers(self.profile)
         self.tools.register(Tool(name="set_preference", description="Save an explicit user preference such as language, voice, or response style", handler=profiles["set_preference"]))
         self.tools.register(Tool(name="add_goal", description="Save an explicit user goal", handler=profiles["add_goal"]))
@@ -80,13 +83,14 @@ class NovaAssistant:
         query = query.strip()
         if not query: return "I didn't catch that."
         self.conversation.add("user", query)
+        self.history.add("user", query)
         if self.agent.confirmation.pending is not None:
             if self._is_confirmation(query):
                 result = self.agent.confirm_pending(); answer = result.text
-                self.conversation.add("assistant", answer); return answer
+                self.conversation.add("assistant", answer); self.history.add("assistant", answer); return answer
             if self._is_cancellation(query):
                 result = self.agent.cancel_pending(); answer = result.text
-                self.conversation.add("assistant", answer); return answer
+                self.conversation.add("assistant", answer); self.history.add("assistant", answer); return answer
         resolved_query = self.conversation.resolve(query)
         routed = self.router.route(resolved_query)
         if routed.intent not in {"chat", "learning"} and routed.response is not None:
@@ -107,7 +111,7 @@ class NovaAssistant:
                     if not answer:
                         proposal = self.learning.record_missing(resolved_query)
                         answer = f"I don't have that skill yet. I recorded a skill proposal at {proposal}."
-        self.conversation.add("assistant", answer); return answer
+        self.conversation.add("assistant", answer); self.history.add("assistant", answer); return answer
 
     def refresh_skills(self) -> list[str]:
         self.skill_management.refresh(); return self.skills.names()
