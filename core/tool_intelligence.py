@@ -27,6 +27,11 @@ class ToolIntelligence:
         "current_time": {"time", "clock", "timestamp", "now"},
         "calculate": {"calculate", "calculator", "compute", "math", "sum"},
         "web_search": {"search", "web", "internet", "online", "lookup", "find", "wiki", "wikipedia"},
+        "set_preference": {"preference", "prefer", "preferred", "language", "voice", "style"},
+        "add_goal": {"goal", "goals", "target", "objective"},
+        "add_project": {"project", "projects"},
+        "add_note": {"note", "notes"},
+        "remove_profile_item": {"remove", "delete", "forget", "profile"},
     }
 
     def __init__(self, tools: ToolRegistry) -> None:
@@ -90,6 +95,34 @@ class ToolIntelligence:
                 value = text[len(prefix):].strip().rstrip("?")
                 if value:
                     return ToolMatch("web_search", {"query": value}, 100)
+
+        preference_patterns = (
+            r"^(?:please )?set (?:my )?([a-z_ ]+?) to (.+)$",
+            r"^(?:please )?make (?:my )?([a-z_ ]+?) (.+)$",
+            r"^(?:please )?remember my preferred ([a-z_ ]+?) is (.+)$",
+            r"^(?:please )?i prefer ([a-z_ ]+?) for ([a-z_ ]+)$",
+        )
+        if self.tools.get("set_preference"):
+            for pattern in preference_patterns:
+                match = re.match(pattern, lowered)
+                if match:
+                    key, value = match.group(1).strip(), match.group(2).strip()
+                    if key and value:
+                        return ToolMatch("set_preference", {"key": key, "value": value}, 100)
+
+        profile_patterns = (
+            ("add_goal", ("add a goal: ", "add goal: ", "my goal is ", "set my goal to ")),
+            ("add_project", ("add a project: ", "add project: ", "my project is ", "set my project to ")),
+            ("add_note", ("add a note: ", "add note: ", "save a profile note: ", "save note: ")),
+            ("remove_profile_item", ("remove from my profile: ", "delete from my profile: ", "forget from my profile: ")),
+        )
+        for tool_name, prefixes in profile_patterns:
+            if self.tools.get(tool_name):
+                for prefix in prefixes:
+                    if lowered.startswith(prefix):
+                        value = text[len(prefix):].strip()
+                        if value:
+                            return ToolMatch(tool_name, {"text" if tool_name != "remove_profile_item" else "term": value}, 100)
 
         if lowered.startswith("use "):
             parts = text[4:].split(maxsplit=1)

@@ -18,6 +18,7 @@ from .builtin_tools import builtin_handlers
 from .web_tools import web_handlers
 from .voice_session import VoiceSession
 from .profile import ProfileStore
+from .profile_tools import profile_handlers
 from .assistant_router import AssistantRouter
 from .health_check import HealthCheck
 from config import ASSISTANT_NAME, WAKE_WORD, VOICE_MAX_TURNS
@@ -41,7 +42,7 @@ class NovaAssistant:
     def _register_tools(self) -> None:
         self.tools.register(Tool(name="list_skills", description="List installed assistant skills", handler=lambda: ", ".join(self.skills.names()) or "No skills installed."))
         self.tools.register(Tool(name="list_tools", description="List explicitly registered agent tools", handler=lambda: ", ".join(self.tools.names()) or "No tools registered."))
-        self.tools.register(Tool(name="show_profile", description="Show the user's explicit saved profile", handler=lambda: str(self.profile.summary())))
+        self.tools.register(Tool(name="show_profile", description="Show the user's explicit saved profile and preferences", handler=lambda: str(self.profile.summary())))
         self.tools.register(Tool(name="show_memory", description="Show recent saved personal memories", handler=lambda: str(self.memory.recent(10))))
         self.tools.register(Tool(name="search_memory", description="Search saved personal memories", handler=lambda term: str(self.memory.search(term))))
         self.tools.register(Tool(name="remember", description="Save an explicit personal memory", handler=lambda text, kind="fact": self.memory.remember(text, kind)))
@@ -52,6 +53,12 @@ class NovaAssistant:
         self.tools.register(Tool(name="system_status", description="Show read-only Nova system readiness and skill health", handler=lambda: self.system_status.summary()))
         self.tools.register(Tool(name="startup_diagnostics", description="Explain current startup readiness issues", handler=lambda: self.startup_report.summary()))
         self.tools.register(Tool(name="show_audit", description="Show recent Nova tool and confirmation audit events", handler=lambda: str(self.agent.audit.recent(20))))
+        profiles = profile_handlers(self.profile)
+        self.tools.register(Tool(name="set_preference", description="Save an explicit user preference such as language, voice, or response style", handler=profiles["set_preference"]))
+        self.tools.register(Tool(name="add_goal", description="Save an explicit user goal", handler=profiles["add_goal"]))
+        self.tools.register(Tool(name="add_project", description="Save an explicit user project", handler=profiles["add_project"]))
+        self.tools.register(Tool(name="add_note", description="Save an explicit user profile note", handler=profiles["add_note"]))
+        self.tools.register(Tool(name="remove_profile_item", description="Remove profile items matching text", handler=profiles["remove_profile_item"], risk_level="medium"))
         builtins = builtin_handlers()
         self.tools.register(Tool(name="current_time", description="Show the current UTC time", handler=builtins["current_time"]))
         self.tools.register(Tool(name="calculate", description="Calculate a basic arithmetic expression safely", handler=builtins["calculate"]))
