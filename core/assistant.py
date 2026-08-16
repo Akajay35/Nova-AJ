@@ -15,6 +15,7 @@ from .agent import Agent
 from .agent_brain import AgentBrain
 from .tool_registry import Tool, ToolRegistry
 from .builtin_tools import builtin_handlers
+from .web_tools import web_handlers
 from .voice_session import VoiceSession
 from .profile import ProfileStore
 from .assistant_router import AssistantRouter
@@ -53,6 +54,8 @@ class NovaAssistant:
         builtins = builtin_handlers()
         self.tools.register(Tool(name="current_time", description="Show the current UTC time", handler=builtins["current_time"]))
         self.tools.register(Tool(name="calculate", description="Calculate a basic arithmetic expression safely", handler=builtins["calculate"]))
+        web = web_handlers()
+        self.tools.register(Tool(name="web_search", description="Search the public web for factual information using Wikipedia", handler=web["web_search"]))
 
     def startup_diagnostics(self) -> dict[str, object]:
         return self.startup_report.run()
@@ -68,8 +71,6 @@ class NovaAssistant:
                 try: answer=skill.handle(query, {"memory": self.memory, "assistant": self, "health": self.health, "skill_management": self.skill_management})
                 except Exception: answer="That skill failed safely."
             else:
-                # Execute only through the bounded registered-tool layer. High-risk
-                # tools remain behind Agent's confirmation boundary.
                 tool_result = self.agent.execute_query(query)
                 if tool_result.tool_name:
                     answer = tool_result.text
