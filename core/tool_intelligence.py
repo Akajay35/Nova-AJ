@@ -24,6 +24,8 @@ class ToolIntelligence:
 
     SYNONYMS = {
         "system": {"system", "status", "health", "readiness", "ready", "online", "up"},
+        "current_time": {"time", "clock", "timestamp", "now"},
+        "calculate": {"calculate", "calculator", "compute", "math", "sum"},
     }
 
     def __init__(self, tools: ToolRegistry) -> None:
@@ -51,14 +53,9 @@ class ToolIntelligence:
         if not text:
             return ToolMatch(None, {})
 
-        # Argument extraction is explicit for user-value tools; arbitrary
-        # function arguments are never guessed.
         for prefix in (
-            "please remember that ",
-            "remember that ",
-            "please remember ",
-            "remember ",
-            "save this: ",
+            "please remember that ", "remember that ", "please remember ",
+            "remember ", "save this: ",
         ):
             if lowered.startswith(prefix) and self.tools.get("remember"):
                 value = text[len(prefix):].strip()
@@ -66,16 +63,24 @@ class ToolIntelligence:
                     return ToolMatch("remember", {"text": value}, 100)
 
         for prefix in (
-            "can you search my memory for ",
-            "search my memory for ",
-            "can you search memory for ",
-            "search memory for ",
-            "find in memory ",
+            "can you search my memory for ", "search my memory for ",
+            "can you search memory for ", "search memory for ", "find in memory ",
         ):
             if lowered.startswith(prefix) and self.tools.get("search_memory"):
                 value = text[len(prefix):].strip()
                 if value:
                     return ToolMatch("search_memory", {"term": value}, 100)
+
+        for prefix in ("calculate ", "compute ", "what is ", "what's "):
+            if lowered.startswith(prefix) and self.tools.get("calculate"):
+                expression = text[len(prefix):].strip().rstrip("?")
+                # Require an arithmetic operator or a numeric expression so
+                # ordinary conversational questions aren't misclassified.
+                if expression and re.search(r"\d", expression) and re.search(r"[+\-*/%()]", expression):
+                    return ToolMatch("calculate", {"expression": expression}, 100)
+
+        if lowered in {"what time is it", "what is the time", "current time", "tell me the time"} and self.tools.get("current_time"):
+            return ToolMatch("current_time", {}, 100)
 
         if lowered.startswith("use "):
             parts = text[4:].split(maxsplit=1)
@@ -100,3 +105,7 @@ class ToolIntelligence:
         if best.score < 2 or (len(candidates) > 1 and candidates[1].score == best.score):
             return ToolMatch(None, {})
         return best
+
+    def plan(self, query: str) -> ToolMatch:
+        """Compatibility alias for callers using the original planner API."""
+        return self.match(query)

@@ -14,6 +14,7 @@ from .conversation import ConversationContext
 from .agent import Agent
 from .agent_brain import AgentBrain
 from .tool_registry import Tool, ToolRegistry
+from .builtin_tools import builtin_handlers
 from .voice_session import VoiceSession
 from .profile import ProfileStore
 from .assistant_router import AssistantRouter
@@ -49,6 +50,9 @@ class NovaAssistant:
         self.tools.register(Tool(name="refresh_skills", description="Refresh the skill registry", handler=lambda: str(self.skill_management.refresh())))
         self.tools.register(Tool(name="system_status", description="Show read-only Nova system readiness and skill health", handler=lambda: self.system_status.summary()))
         self.tools.register(Tool(name="startup_diagnostics", description="Explain current startup readiness issues", handler=lambda: self.startup_report.summary()))
+        builtins = builtin_handlers()
+        self.tools.register(Tool(name="current_time", description="Show the current UTC time", handler=builtins["current_time"]))
+        self.tools.register(Tool(name="calculate", description="Calculate a basic arithmetic expression safely", handler=builtins["calculate"]))
 
     def startup_diagnostics(self) -> dict[str, object]:
         return self.startup_report.run()
