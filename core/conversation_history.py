@@ -52,6 +52,9 @@ class ConversationHistory:
             return []
         return self._read()[-min(limit, self.limit) :]
 
+    def all(self) -> list[dict[str, Any]]:
+        return self._read()
+
     def clear(self) -> None:
         self._write([])
 
