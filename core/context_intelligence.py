@@ -17,7 +17,7 @@ class ContextSnapshot:
 
 
 class ContextIntelligence:
-    """Build a small, deterministic personal context snapshot without mixing stores."""
+    """Build a deterministic personal-context view without mixing data stores."""
 
     STOP_WORDS = {
         "about", "and", "can", "did", "do", "for", "from", "have", "i", "in",
@@ -25,12 +25,7 @@ class ContextIntelligence:
         "with", "you", "yesterday", "today",
     }
 
-    def __init__(
-        self,
-        profile: ProfileStore,
-        memory: MemoryStore,
-        history: ConversationHistory,
-    ) -> None:
+    def __init__(self, profile: ProfileStore, memory: MemoryStore, history: ConversationHistory) -> None:
         self.profile = profile
         self.memory = memory
         self.history = history
@@ -58,7 +53,7 @@ class ContextIntelligence:
                 memories = memory_matches[-max(1, memory_limit):]
 
             history_matches = [
-                item for item in self.history._read()
+                item for item in self.history.all()
                 if terms & self._terms(str(item.get("text", "")))
             ]
             if history_matches:
