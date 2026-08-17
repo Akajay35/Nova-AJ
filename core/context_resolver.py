@@ -12,6 +12,7 @@ class ResolvedContext:
     query: str
     subject: str | None
     source: str
+    confidence: float = 0.0
 
 
 class ContextResolver:
@@ -26,29 +27,34 @@ class ContextResolver:
         self.conversation = conversation
         self.intelligence = intelligence
 
+    @staticmethod
+    def _has_hint(text: str, hints: tuple[str, ...]) -> bool:
+        return any(re.search(rf"\b{re.escape(hint)}\b", text) for hint in hints)
+
     def resolve(self, text: str) -> ResolvedContext:
         cleaned = text.strip()
         if not cleaned:
-            return ResolvedContext("", None, "none")
+            return ResolvedContext("", None, "none", 0.0)
 
         if self.REFERENCE_RE.search(cleaned) and self.conversation.last_subject:
             resolved = self.conversation.resolve(cleaned)
-            return ResolvedContext(resolved, self.conversation.last_subject, "conversation")
+            return ResolvedContext(resolved, self.conversation.last_subject, "conversation", 1.0)
 
         lowered = cleaned.lower()
-        if any(hint in lowered for hint in self.PROFILE_HINTS):
-            return ResolvedContext(cleaned, None, "profile")
-        if any(hint in lowered for hint in self.MEMORY_HINTS):
-            return ResolvedContext(cleaned, None, "memory")
-        if any(hint in lowered for hint in self.HISTORY_HINTS):
-            return ResolvedContext(cleaned, None, "history")
-        return ResolvedContext(cleaned, None, "none")
+        if self._has_hint(lowered, self.PROFILE_HINTS):
+            return ResolvedContext(cleaned, None, "profile", 0.95)
+        if self._has_hint(lowered, self.MEMORY_HINTS):
+            return ResolvedContext(cleaned, None, "memory", 0.95)
+        if self._has_hint(lowered, self.HISTORY_HINTS):
+            return ResolvedContext(cleaned, None, "history", 0.95)
+        return ResolvedContext(cleaned, None, "none", 0.0)
 
     def context_for(self, text: str) -> dict:
         resolved = self.resolve(text)
         snapshot = self.intelligence.snapshot(resolved.query)
         return {
             "source": resolved.source,
+            "confidence": resolved.confidence,
             "subject": resolved.subject,
             "profile": snapshot.profile,
             "relevant_memories": snapshot.memories,
