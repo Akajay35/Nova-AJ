@@ -13,6 +13,7 @@ from .ai_provider import AIProvider
 from .conversation import ConversationContext
 from .conversation_history import ConversationHistory
 from .history_tools import history_handlers
+from .context_intelligence import ContextIntelligence
 from .agent import Agent
 from .agent_brain import AgentBrain
 from .tool_registry import Tool, ToolRegistry
@@ -34,9 +35,9 @@ class NovaAssistant:
         self.skill_permissions = SkillPermissions()
         self.skill_management = SkillManagement(self.skills, self.skill_permissions)
         self.memory = MemoryStore(); self.profile = ProfileStore(); self.learning = SkillGrowth()
-        self.ai = AIProvider(); self.brain = AgentBrain(self.ai); self.conversation = ConversationContext(); self.history = ConversationHistory(); self.tools = ToolRegistry()
+        self.ai = AIProvider(); self.brain = AgentBrain(self.ai); self.conversation = ConversationContext(); self.history = ConversationHistory(); self.context_intelligence = ContextIntelligence(self.profile, self.memory, self.history); self.tools = ToolRegistry()
         self._register_tools(); self.agent = Agent(self.tools); self.router = router or AssistantRouter()
-        self.health = HealthCheck({"listener": self.listener, "speaker": self.speaker, "skills": self.skills, "memory": self.memory, "profile": self.profile, "learning": self.learning, "ai": self.ai, "brain": self.brain, "conversation": self.conversation, "history": self.history, "tools": self.tools, "agent": self.agent, "router": self.router})
+        self.health = HealthCheck({"listener": self.listener, "speaker": self.speaker, "skills": self.skills, "memory": self.memory, "profile": self.profile, "learning": self.learning, "ai": self.ai, "brain": self.brain, "conversation": self.conversation, "history": self.history, "context_intelligence": self.context_intelligence, "tools": self.tools, "agent": self.agent, "router": self.router})
         self.system_status = SystemStatus(self)
         self.startup_report = StartupDiagnostics(self)
         self.voice_session = VoiceSession(self.listener, self.speaker, max_turns=VOICE_MAX_TURNS)
@@ -60,6 +61,7 @@ class NovaAssistant:
         self.tools.register(Tool(name="search_history", description="Search recent persistent conversations by words or topic", handler=history["search_history"]))
         self.tools.register(Tool(name="history_for_day", description="Show persistent conversations from today, yesterday, or a specific date", handler=history["history_for_day"]))
         self.tools.register(Tool(name="clear_history", description="Clear persistent conversation history", handler=lambda: self.history.clear() or "Conversation history cleared.", risk_level="medium"))
+        self.tools.register(Tool(name="personal_context", description="Show relevant profile, personal memories, and recent conversations for a request", handler=lambda query="": self.context_intelligence.render(query)))
         profiles = profile_handlers(self.profile)
         self.tools.register(Tool(name="set_preference", description="Save an explicit user preference such as language, voice, or response style", handler=profiles["set_preference"]))
         self.tools.register(Tool(name="add_goal", description="Save an explicit user goal", handler=profiles["add_goal"]))
@@ -110,7 +112,8 @@ class NovaAssistant:
                     answer = tool_result.text
                     self.conversation.observe_tool_result(tool_result.tool_name, tool_result.text)
                 else:
-                    personal_context = {"profile": self.profile.summary(), "relevant_memory": self.memory.search(resolved_query)[:6]}
+                    context = self.context_intelligence.snapshot(resolved_query)
+                    personal_context = {"profile": context.profile, "relevant_memory": context.memories, "relevant_conversations": context.conversations}
                     answer = self.brain.respond(resolved_query, self.conversation.recent(), personal_context)
                     if not answer:
                         proposal = self.learning.record_missing(resolved_query)
