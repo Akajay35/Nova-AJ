@@ -2,7 +2,9 @@ name: Nova AJ tests
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - feat/v285-context-policy
   pull_request:
     branches: [main]
   workflow_dispatch:
