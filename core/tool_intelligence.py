@@ -34,6 +34,7 @@ class ToolIntelligence:
         "remove_profile_item": {"remove", "delete", "forget", "profile"},
         "search_history": {"history", "conversation", "conversations", "discussed", "talked", "said", "remember"},
         "history_for_day": {"history", "conversation", "yesterday", "today", "discussed", "talked"},
+        "explain_context": {"context", "source", "used", "why"},
     }
 
     def __init__(self, tools: ToolRegistry) -> None:
@@ -57,6 +58,18 @@ class ToolIntelligence:
         lowered = text.lower()
         if not text:
             return ToolMatch(None, {})
+
+        if self.tools.get("explain_context"):
+            for prefix in (
+                "why did you use context for ",
+                "why did you use my context for ",
+                "explain the context for ",
+                "what context did you use for ",
+            ):
+                if lowered.startswith(prefix):
+                    value = text[len(prefix):].strip().rstrip("?")
+                    if value:
+                        return ToolMatch("explain_context", {"query": value}, 100)
 
         for prefix in ("please remember that ", "remember that ", "please remember ", "remember ", "save this: "):
             if lowered.startswith(prefix) and self.tools.get("remember"):
