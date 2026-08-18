@@ -39,3 +39,11 @@ def test_rejects_ambiguous_match():
     registry.register(Tool("alpha", "Show account information", lambda: "a"))
     registry.register(Tool("beta", "Show account information", lambda: "b"))
     assert ToolIntelligence(registry).match("show account information").name is None
+
+
+def test_extracts_context_provenance_request():
+    registry = ToolRegistry()
+    registry.register(Tool("explain_context", "Explain which personal context source Nova would use for a request", lambda query: query))
+    match = ToolIntelligence(registry).match("why did you use context for football?")
+    assert match.name == "explain_context"
+    assert match.arguments == {"query": "football"}
