@@ -15,6 +15,7 @@ from .conversation_history import ConversationHistory
 from .history_tools import history_handlers
 from .context_intelligence import ContextIntelligence
 from .context_resolver import ContextResolver
+from .context_privacy import ContextPrivacy
 from .agent import Agent
 from .agent_brain import AgentBrain
 from .tool_registry import Tool, ToolRegistry
@@ -36,9 +37,9 @@ class NovaAssistant:
         self.skill_permissions = SkillPermissions()
         self.skill_management = SkillManagement(self.skills, self.skill_permissions)
         self.memory = MemoryStore(); self.profile = ProfileStore(); self.learning = SkillGrowth()
-        self.ai = AIProvider(); self.brain = AgentBrain(self.ai); self.conversation = ConversationContext(); self.history = ConversationHistory(); self.context_intelligence = ContextIntelligence(self.profile, self.memory, self.history); self.context_resolver = ContextResolver(self.conversation, self.context_intelligence); self.tools = ToolRegistry()
+        self.ai = AIProvider(); self.brain = AgentBrain(self.ai); self.conversation = ConversationContext(); self.history = ConversationHistory(); self.context_intelligence = ContextIntelligence(self.profile, self.memory, self.history); self.context_resolver = ContextResolver(self.conversation, self.context_intelligence); self.context_privacy = ContextPrivacy(); self.tools = ToolRegistry()
         self._register_tools(); self.agent = Agent(self.tools); self.router = router or AssistantRouter()
-        self.health = HealthCheck({"listener": self.listener, "speaker": self.speaker, "skills": self.skills, "memory": self.memory, "profile": self.profile, "learning": self.learning, "ai": self.ai, "brain": self.brain, "conversation": self.conversation, "history": self.history, "context_intelligence": self.context_intelligence, "context_resolver": self.context_resolver, "tools": self.tools, "agent": self.agent, "router": self.router})
+        self.health = HealthCheck({"listener": self.listener, "speaker": self.speaker, "skills": self.skills, "memory": self.memory, "profile": self.profile, "learning": self.learning, "ai": self.ai, "brain": self.brain, "conversation": self.conversation, "history": self.history, "context_intelligence": self.context_intelligence, "context_resolver": self.context_resolver, "context_privacy": self.context_privacy, "tools": self.tools, "agent": self.agent, "router": self.router})
         self.system_status = SystemStatus(self)
         self.startup_report = StartupDiagnostics(self)
         self.voice_session = VoiceSession(self.listener, self.speaker, max_turns=VOICE_MAX_TURNS)
@@ -115,7 +116,7 @@ class NovaAssistant:
                     answer = tool_result.text
                     self.conversation.observe_tool_result(tool_result.tool_name, tool_result.text)
                 else:
-                    context = self.context_resolver.context_for(resolved_query)
+                    context = self.context_privacy.sanitize(self.context_resolver.context_for(resolved_query))
                     answer = self.brain.respond(resolved_query, self.conversation.recent(), context)
                     if not answer:
                         proposal = self.learning.record_missing(resolved_query)
