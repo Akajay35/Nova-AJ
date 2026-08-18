@@ -63,6 +63,7 @@ class NovaAssistant:
         self.tools.register(Tool(name="history_for_day", description="Show persistent conversations from today, yesterday, or a specific date", handler=history["history_for_day"]))
         self.tools.register(Tool(name="clear_history", description="Clear persistent conversation history", handler=lambda: self.history.clear() or "Conversation history cleared.", risk_level="medium"))
         self.tools.register(Tool(name="personal_context", description="Show relevant profile, personal memories, and recent conversations for a request", handler=lambda query="": self.context_intelligence.render(query)))
+        self.tools.register(Tool(name="explain_context", description="Explain which personal context source Nova would use for a request", handler=lambda query="": str(self.context_resolver.context_for(query))))
         profiles = profile_handlers(self.profile)
         self.tools.register(Tool(name="set_preference", description="Save an explicit user preference such as language, voice, or response style", handler=profiles["set_preference"]))
         self.tools.register(Tool(name="add_goal", description="Save an explicit user goal", handler=profiles["add_goal"]))
