@@ -1,1 +1,0 @@
-v285 privacy allowlist: preferred_name, language, timezone, communication_style, response_style, theme
