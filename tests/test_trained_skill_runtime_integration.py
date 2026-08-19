@@ -7,6 +7,10 @@ from core.tool_registry import Tool, ToolRegistry
 from core.trained_skill_runtime import TrainedSkillRuntime
 
 
+def _calculator_stub(expression: str) -> str:
+    return {"2+2": "4"}.get(expression, "unsupported")
+
+
 def test_training_approval_and_execution(tmp_path):
     trainer = SkillTrainer(storage_path=tmp_path / "trained_skills.json")
     trainer.train(
@@ -23,7 +27,7 @@ def test_training_approval_and_execution(tmp_path):
     guard = PermissionGuard(permissions)
 
     tools = ToolRegistry()
-    tools.register(Tool(name="calculate", description="test calculator", handler=lambda expression: str(eval(expression, {"__builtins__": {}}, {}))))
+    tools.register(Tool(name="calculate", description="test calculator", handler=_calculator_stub))
     runtime = TrainedSkillRuntime(trainer, tools, guard)
 
     assert runtime.execute("report") == ["4"]
@@ -35,7 +39,7 @@ def test_unapproved_skill_cannot_execute(tmp_path):
     permissions = PermissionManager(config_path=tmp_path / "permissions.json")
     guard = PermissionGuard(permissions)
     tools = ToolRegistry()
-    tools.register(Tool(name="calculate", description="test", handler=lambda expression: "4"))
+    tools.register(Tool(name="calculate", description="test", handler=_calculator_stub))
     runtime = TrainedSkillRuntime(trainer, tools, guard)
 
     try:
