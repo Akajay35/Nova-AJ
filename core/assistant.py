@@ -5,6 +5,7 @@ from .speaker import Speaker
 from .skill_manager import SkillManager
 from .skill_management import SkillManagement
 from .skill_permissions import SkillPermissions
+from .permission_guard import PermissionGuard
 from .system_status import SystemStatus
 from .startup_diagnostics import StartupDiagnostics
 from .memory import MemoryStore
@@ -36,6 +37,7 @@ class NovaAssistant:
         self.skills.load()
         self.skill_permissions = SkillPermissions()
         self.skill_management = SkillManagement(self.skills, self.skill_permissions)
+        self.permission_guard = PermissionGuard(self.skill_permissions)
         self.memory = MemoryStore(); self.profile = ProfileStore(); self.learning = SkillGrowth()
         self.ai = AIProvider(); self.brain = AgentBrain(self.ai); self.conversation = ConversationContext(); self.history = ConversationHistory(); self.context_intelligence = ContextIntelligence(self.profile, self.memory, self.history); self.context_resolver = ContextResolver(self.conversation, self.context_intelligence); self.context_policy = ContextPolicy(); self.tools = ToolRegistry()
         self._register_tools(); self.agent = Agent(self.tools); self.router = router or AssistantRouter()
@@ -87,6 +89,18 @@ class NovaAssistant:
     def _is_cancellation(query: str) -> bool:
         return query.strip().lower() in {"no", "n", "cancel", "stop", "don't", "do not"}
 
+    def _run_skill(self, skill, query: str) -> str:
+        for permission in getattr(skill, "required_permissions", ()):
+            decision = self.permission_guard.check(skill.name, permission, query)
+            if not decision.allowed:
+                if decision.needs_confirmation:
+                    return f"Permission confirmation required for {skill.name}: {permission}."
+                return f"Skill blocked: {decision.reason}."
+        try:
+            return skill.handle(query, {"memory": self.memory, "assistant": self, "health": self.health, "skill_management": self.skill_management})
+        except Exception:
+            return "That skill failed safely."
+
     def handle(self, query: str) -> str:
         query = query.strip()
         if not query: return "I didn't catch that."
@@ -107,8 +121,7 @@ class NovaAssistant:
         else:
             skill = self.skills.find(resolved_query)
             if skill:
-                try: answer = skill.handle(resolved_query, {"memory": self.memory, "assistant": self, "health": self.health, "skill_management": self.skill_management})
-                except Exception: answer = "That skill failed safely."
+                answer = self._run_skill(skill, resolved_query)
             else:
                 tool_result = self.agent.execute_query(resolved_query)
                 if tool_result.tool_name:
