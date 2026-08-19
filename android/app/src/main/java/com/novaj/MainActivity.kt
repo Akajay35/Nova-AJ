@@ -34,7 +34,7 @@ private fun NovaAjApp() {
     val client = remember { NovaApiClient(BuildConfig.NOVA_API_URL, BuildConfig.NOVA_API_TOKEN) }
     val context = LocalContext.current
     val tts = remember { TextToSpeech(context, null) }
-    DisposableEffect(t t s) { onDispose { tts.stop(); tts.shutdown() } }
+    DisposableEffect(tts) { onDispose { tts.stop(); tts.shutdown() } }
     MaterialTheme {
         Surface(Modifier.fillMaxSize()) {
             Scaffold(bottomBar = { NavigationBar { tabs.forEachIndexed { index, title -> NavigationBarItem(selected == index, { selected = index }, icon = { Text(title.take(1)) }, label = { Text(title) }) } } }) { padding ->
