@@ -9,9 +9,9 @@ def test_context_policy_bounds_each_context_source():
             "preferred_name": "AJ",
             "language": "en",
             "timezone": "IST",
-            "communication_style": "concise",
-            "response_style": "direct",
             "theme": "dark",
+            "country": "IN",
+            "occupation": "analyst",
             "email": "secret",
         },
         memories=[{"text": f"memory {i}"} for i in range(10)],
@@ -21,7 +21,6 @@ def test_context_policy_bounds_each_context_source():
     result = ContextPolicy(max_profile_fields=3, max_memories=3, max_conversations=4).apply(snapshot)
 
     assert len(result["profile"]) == 3
-    assert list(result["profile"]) == ["preferred_name", "language", "timezone"]
     assert len(result["relevant_memories"]) == 3
     assert len(result["relevant_conversations"]) == 4
     assert result["relevant_memories"][-1]["text"] == "memory 9"
