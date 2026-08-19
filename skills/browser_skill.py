@@ -19,6 +19,8 @@ class BrowserSkill(BaseSkill):
     name = "browser"
     description = "Opens approved websites or performs a browser search."
     keywords = ["open youtube", "open github", "open google", "open gmail", "open chatgpt", "search browser"]
+    risk_level = "medium"
+    required_permissions = ("browser",)
 
     def matches(self, query: str) -> bool:
         q = query.lower().strip()
