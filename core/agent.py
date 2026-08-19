@@ -50,18 +50,16 @@ class Agent:
             return AgentResult(str(result), tool_name=tool.name)
         except Exception as exc:
             self.confirmation.clear()
-            self.audit.record("tool", tool.name, "execute", "allowed", f"error: {type(exc).__name__}")
-            return AgentResult(f"The tool failed safely: {exc}", tool_name=tool.name)
+            self.audit.record("tool", tool.name, "execute", "error", type(exc).__name__)
+            return AgentResult("The tool failed safely. Check system status for diagnostics.", tool_name=tool.name)
 
     def execute_query(self, query: str, *, confirm: bool = False) -> AgentResult:
-        """Select, authorize, and execute a registered tool."""
         match = self.intelligence.match(query)
         if match.name is None:
             return AgentResult("I couldn't safely identify a registered tool for that request.")
         return self.execute(match.name, confirm=confirm, **match.arguments)
 
     def confirm_pending(self) -> AgentResult:
-        """Execute the previously blocked risky action after explicit confirmation."""
         action = self.confirmation.take()
         if action is None:
             return AgentResult("There is no pending action to confirm.")
