@@ -34,6 +34,11 @@ class ToolIntelligence:
         "remove_profile_item": {"remove", "delete", "forget", "profile"},
         "search_history": {"history", "conversation", "conversations", "discussed", "talked", "said", "remember"},
         "history_for_day": {"history", "conversation", "yesterday", "today", "discussed", "talked"},
+        "train_skill": {"train", "training", "teach", "skill", "learn"},
+        "test_trained_skill": {"test", "testing", "trained", "skill"},
+        "approve_trained_skill": {"approve", "activate", "enable", "trained", "skill"},
+        "disable_trained_skill": {"disable", "deactivate", "trained", "skill"},
+        "list_trained_skills": {"list", "show", "trained", "skills"},
     }
 
     def __init__(self, tools: ToolRegistry) -> None:
@@ -52,11 +57,65 @@ class ToolIntelligence:
                 expanded.add(canonical)
         return expanded
 
+    @staticmethod
+    def _trainer_fields(text: str) -> dict[str, Any] | None:
+        """Parse the intentionally simple, data-only training format."""
+        pattern = re.compile(
+            r"^train\s+(?:a\s+)?skill\s+(?P<name>[a-z0-9][a-z0-9_-]{1,48})\s*:\s*"
+            r"(?P<description>.+?)\s*\|\s*trigger\s*:\s*(?P<trigger>.+?)\s*\|\s*"
+            r"steps\s*:\s*(?P<steps>.+?)(?:\s*\|\s*risk\s*:\s*(?P<risk>low|medium|high))?"
+            r"(?:\s*\|\s*permissions?\s*:\s*(?P<permissions>[^|]+))?$",
+            re.IGNORECASE,
+        )
+        match = pattern.match(text.strip())
+        if not match:
+            return None
+        steps = [s.strip() for s in re.split(r"\s*(?:;|\n)\s*", match.group("steps")) if s.strip()]
+        permissions = [p.strip() for p in (match.group("permissions") or "").split(",") if p.strip()]
+        return {
+            "name": match.group("name").lower(),
+            "description": match.group("description").strip(),
+            "trigger": match.group("trigger").strip(),
+            "steps": steps,
+            "risk_level": (match.group("risk") or "low").lower(),
+            "required_permissions": permissions,
+        }
+
     def match(self, query: str) -> ToolMatch:
         text = query.strip()
         lowered = text.lower()
         if not text:
             return ToolMatch(None, {})
+
+        # Explicit trainer commands are parsed before generic scoring so their
+        # structured arguments cannot be lost to an ambiguous keyword match.
+        if lowered.startswith("train skill ") or lowered.startswith("train a skill "):
+            if self.tools.get("train_skill"):
+                arguments = self._trainer_fields(text)
+                if arguments:
+                    return ToolMatch("train_skill", arguments, 100)
+
+        for prefix in ("test trained skill ", "test skill "):
+            if lowered.startswith(prefix) and self.tools.get("test_trained_skill"):
+                remainder = text[len(prefix):].strip()
+                parts = remainder.split(" for ", 1)
+                if len(parts) == 2 and parts[0].strip() and parts[1].strip():
+                    return ToolMatch("test_trained_skill", {"name": parts[0].strip(), "query": parts[1].strip()}, 100)
+
+        for prefix in ("approve trained skill ", "activate trained skill ", "enable trained skill "):
+            if lowered.startswith(prefix) and self.tools.get("approve_trained_skill"):
+                name = text[len(prefix):].strip()
+                if name:
+                    return ToolMatch("approve_trained_skill", {"name": name}, 100)
+
+        for prefix in ("disable trained skill ", "deactivate trained skill "):
+            if lowered.startswith(prefix) and self.tools.get("disable_trained_skill"):
+                name = text[len(prefix):].strip()
+                if name:
+                    return ToolMatch("disable_trained_skill", {"name": name}, 100)
+
+        if lowered in {"list trained skills", "show trained skills", "show my trained skills", "list my trained skills"} and self.tools.get("list_trained_skills"):
+            return ToolMatch("list_trained_skills", {}, 100)
 
         for prefix in ("please remember that ", "remember that ", "please remember ", "remember ", "save this: "):
             if lowered.startswith(prefix) and self.tools.get("remember"):
