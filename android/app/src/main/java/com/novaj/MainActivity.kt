@@ -40,7 +40,7 @@ private fun NovaAjApp() {
     MaterialTheme {
         Surface(Modifier.fillMaxSize()) {
             Scaffold(bottomBar = { NavigationBar { tabs.forEachIndexed { index, title -> NavigationBarItem(selected == index, { selected = index }, icon = { Text(title.take(1)) }, label = { Text(title) }) } } }) { padding ->
-                Box(Modifier.padding(padding)) { when (selected) { 0 -> HomeScreen { selected = 1 }; 1 -> ChatScreen(messages, client, tts); 2 -> TrainerScreen(); 3 -> SkillsScreen(); else -> SettingsScreen() } }
+                Box(Modifier.padding(padding)) { when (selected) { 0 -> HomeScreen { selected = 1 }; 1 -> ChatScreen(messages, client, tts); 2 -> TrainerScreen(); 3 -> SkillsScreen(); else -> PermissionSettingsScreen() } }
             }
         }
     }
@@ -53,7 +53,10 @@ private fun PermissionSettingsScreen() {
     val context = LocalContext.current
     var microphoneGranted by remember { mutableStateOf(androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) }
     var wakeWordEnabled by remember { mutableStateOf(false) }
-    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { microphoneGranted = it }
+    val speechLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { }
+    val wakeWordController = remember { WakeWordController(context, speechLauncher) }
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> microphoneGranted = granted }
+    DisposableEffect(wakeWordController) { onDispose { wakeWordController.setEnabled(false) } }
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Text("Voice & Wake Word", style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(16.dp))
@@ -69,13 +72,19 @@ private fun PermissionSettingsScreen() {
         Spacer(Modifier.height(12.dp))
         Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp)) {
             Text("Wake word", style = MaterialTheme.typography.titleMedium)
-            Text(if (wakeWordEnabled) "Enabled — only use when you want hands-free activation" else "Disabled by default")
+            Text(if (wakeWordEnabled) "Enabled — ready for a wake event" else "Disabled by default")
             Spacer(Modifier.height(8.dp))
-            Switch(checked = wakeWordEnabled, onCheckedChange = { value -> if (microphoneGranted) wakeWordEnabled = value })
+            Switch(checked = wakeWordEnabled, onCheckedChange = { value ->
+                if (microphoneGranted) { wakeWordEnabled = value; wakeWordController.setEnabled(value) }
+            })
+            if (wakeWordEnabled) {
+                Spacer(Modifier.height(8.dp))
+                Button(onClick = { wakeWordController.startListeningAfterWake() }) { Text("Test wake event") }
+            }
             if (!microphoneGranted) Text("Grant microphone permission before enabling wake-word mode.")
         } }
         Spacer(Modifier.height(12.dp))
-        Text("Privacy: Nova-AJ does not enable continuous microphone listening from this screen. A dedicated on-device hotword service is required for true always-on wake-word detection.")
+        Text("Privacy: wake-word mode is disabled by default. This controller does not continuously record; a dedicated on-device hotword service is required for true always-on detection.")
     }
 }
 
@@ -114,4 +123,3 @@ private fun ChatScreen(messages: MutableList<ChatMessage>, client: NovaApiClient
 
 @Composable private fun TrainerScreen() { Column(Modifier.fillMaxSize().padding(16.dp)) { Text("Trainer Mode", style = MaterialTheme.typography.headlineMedium); Spacer(Modifier.height(12.dp)); Text("Teach Nova-AJ new workflows. Trained skills require approval before activation."); Spacer(Modifier.height(20.dp)); Button(onClick = {}) { Text("Start training") } } }
 @Composable private fun SkillsScreen() { Column(Modifier.fillMaxSize().padding(16.dp)) { Text("Skills", style = MaterialTheme.typography.headlineMedium); listOf("Voice", "Memory", "Web", "File tools", "Trainer").forEach { skill -> Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) { Text("✓  $skill", Modifier.padding(14.dp)) } } } }
-@Composable private fun SettingsScreen() { PermissionSettingsScreen() }
