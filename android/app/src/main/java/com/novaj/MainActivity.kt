@@ -3,7 +3,9 @@ package com.novaj
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
 import androidx.activity.ComponentActivity
@@ -47,6 +49,37 @@ private fun NovaAjApp() {
 private fun speak(tts: TextToSpeech, text: String) { if (text.isNotBlank()) tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "nova-response") }
 
 @Composable
+private fun PermissionSettingsScreen() {
+    val context = LocalContext.current
+    var microphoneGranted by remember { mutableStateOf(androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) }
+    var wakeWordEnabled by remember { mutableStateOf(false) }
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { microphoneGranted = it }
+    Column(Modifier.fillMaxSize().padding(16.dp)) {
+        Text("Voice & Wake Word", style = MaterialTheme.typography.headlineMedium)
+        Spacer(Modifier.height(16.dp))
+        Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp)) {
+            Text("Microphone", style = MaterialTheme.typography.titleMedium)
+            Text(if (microphoneGranted) "Permission granted" else "Permission required for voice input")
+            Spacer(Modifier.height(8.dp))
+            Button(onClick = {
+                if (!microphoneGranted) permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                else context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}")))
+            }) { Text(if (microphoneGranted) "Open app permission settings" else "Allow microphone") }
+        } }
+        Spacer(Modifier.height(12.dp))
+        Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp)) {
+            Text("Wake word", style = MaterialTheme.typography.titleMedium)
+            Text(if (wakeWordEnabled) "Enabled — only use when you want hands-free activation" else "Disabled by default")
+            Spacer(Modifier.height(8.dp))
+            Switch(checked = wakeWordEnabled, onCheckedChange = { value -> if (microphoneGranted) wakeWordEnabled = value })
+            if (!microphoneGranted) Text("Grant microphone permission before enabling wake-word mode.")
+        } }
+        Spacer(Modifier.height(12.dp))
+        Text("Privacy: Nova-AJ does not enable continuous microphone listening from this screen. A dedicated on-device hotword service is required for true always-on wake-word detection.")
+    }
+}
+
+@Composable
 private fun HomeScreen(onChat: () -> Unit) {
     val context = LocalContext.current; var status by remember { mutableStateOf<String?>(null) }
     val speechLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result -> val text = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull(); status = if (text.isNullOrBlank()) "No speech detected." else "Heard: $text" }
@@ -63,10 +96,7 @@ private fun HomeScreen(onChat: () -> Unit) {
 private fun ChatScreen(messages: MutableList<ChatMessage>, client: NovaApiClient, tts: TextToSpeech) {
     var input by remember { mutableStateOf("") }; var busy by remember { mutableStateOf(false) }; var error by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
-    val speechLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        val text = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
-        if (!text.isNullOrBlank() && !busy) input = text
-    }
+    val speechLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result -> val text = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull(); if (!text.isNullOrBlank() && !busy) input = text }
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> if (granted) speechLauncher.launch(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply { putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM); putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault()); putExtra(RecognizerIntent.EXTRA_PROMPT, "Ask Nova-AJ") }) }
     fun startVoice() { if (androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) speechLauncher.launch(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply { putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM); putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault()); putExtra(RecognizerIntent.EXTRA_PROMPT, "Ask Nova-AJ") }) else permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) }
     fun send(text: String) { if (text.isBlank() || busy) return; messages.add(ChatMessage(text.trim(), true)); input = ""; error = null; busy = true; Thread { val result = client.chat(text.trim()); runOnUiThread { result.onSuccess { reply -> messages.add(ChatMessage(reply, false)); speak(tts, reply) }.onFailure { error = "Connection failed: ${it.message ?: "unknown error"}" }; busy = false } }.start() }
@@ -84,4 +114,4 @@ private fun ChatScreen(messages: MutableList<ChatMessage>, client: NovaApiClient
 
 @Composable private fun TrainerScreen() { Column(Modifier.fillMaxSize().padding(16.dp)) { Text("Trainer Mode", style = MaterialTheme.typography.headlineMedium); Spacer(Modifier.height(12.dp)); Text("Teach Nova-AJ new workflows. Trained skills require approval before activation."); Spacer(Modifier.height(20.dp)); Button(onClick = {}) { Text("Start training") } } }
 @Composable private fun SkillsScreen() { Column(Modifier.fillMaxSize().padding(16.dp)) { Text("Skills", style = MaterialTheme.typography.headlineMedium); listOf("Voice", "Memory", "Web", "File tools", "Trainer").forEach { skill -> Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) { Text("✓  $skill", Modifier.padding(14.dp)) } } } }
-@Composable private fun SettingsScreen() { Column(Modifier.fillMaxSize().padding(16.dp)) { Text("Settings", style = MaterialTheme.typography.headlineMedium); Spacer(Modifier.height(12.dp)); Text("Backend connection: configured through build-time settings"); Text("Permissions"); Text("Memory & privacy"); Text("Voice settings"); Text("Diagnostics") } }
+@Composable private fun SettingsScreen() { PermissionSettingsScreen() }
