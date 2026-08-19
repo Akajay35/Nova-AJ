@@ -17,11 +17,8 @@ def _clean_snippet(value: object) -> str:
 
 
 def web_search(query: str, limit: int = 5) -> str:
-    """Search Wikipedia's public API and return normalized source links.
-
-    The network surface stays narrow: callers cannot provide an arbitrary URL.
-    """
-    text = query.strip()
+    """Search Wikipedia's public API through a deliberately narrow network surface."""
+    text = str(query).strip()
     if not text:
         raise ValueError("Search query cannot be empty")
     if len(text) > 200:
@@ -35,12 +32,12 @@ def web_search(query: str, limit: int = 5) -> str:
         f"{WIKIPEDIA_API}?action=query&list=search&srsearch={quote(text)}"
         f"&srlimit={limit}&format=json&utf8=1"
     )
-    request = Request(url, headers={"User-Agent": "Nova-AJ/274 (personal assistant)"})
+    request = Request(url, headers={"User-Agent": "Nova-AJ/286 (personal assistant)"})
     try:
         with urlopen(request, timeout=8) as response:
             payload = json.load(response)
     except Exception as exc:
-        raise RuntimeError(f"Web search failed safely: {exc}") from exc
+        raise RuntimeError("Web search is currently unavailable.") from exc
 
     results = payload.get("query", {}).get("search", [])
     if not results:
@@ -54,7 +51,6 @@ def web_search(query: str, limit: int = 5) -> str:
         snippet = _clean_snippet(item.get("snippet"))
         source = f"{WIKIPEDIA_PAGE}{quote(title.replace(' ', '_'))}"
         lines.append(f"{title}: {snippet}\nSource: {source}")
-
     return "\n\n".join(lines) if lines else "No web results found."
 
 
