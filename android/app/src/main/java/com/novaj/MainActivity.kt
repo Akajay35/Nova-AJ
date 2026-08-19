@@ -34,7 +34,7 @@ private fun NovaAjApp() {
     val client = remember { NovaApiClient(BuildConfig.NOVA_API_URL, BuildConfig.NOVA_API_TOKEN) }
     val context = LocalContext.current
     val tts = remember { TextToSpeech(context, null) }
-    DisposableEffect(tts) { onDispose { tts.stop(); tts.shutdown() } }
+    DisposableEffect(t t s) { onDispose { tts.stop(); tts.shutdown() } }
     MaterialTheme {
         Surface(Modifier.fillMaxSize()) {
             Scaffold(bottomBar = { NavigationBar { tabs.forEachIndexed { index, title -> NavigationBarItem(selected == index, { selected = index }, icon = { Text(title.take(1)) }, label = { Text(title) }) } } }) { padding ->
@@ -44,7 +44,7 @@ private fun NovaAjApp() {
     }
 }
 
-private fun speak(tts: TextToSpeech, text: String) { tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "nova-response") }
+private fun speak(tts: TextToSpeech, text: String) { if (text.isNotBlank()) tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "nova-response") }
 
 @Composable
 private fun HomeScreen(onChat: () -> Unit) {
@@ -62,13 +62,22 @@ private fun HomeScreen(onChat: () -> Unit) {
 @Composable
 private fun ChatScreen(messages: MutableList<ChatMessage>, client: NovaApiClient, tts: TextToSpeech) {
     var input by remember { mutableStateOf("") }; var busy by remember { mutableStateOf(false) }; var error by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+    val speechLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val text = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+        if (!text.isNullOrBlank() && !busy) input = text
+    }
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> if (granted) speechLauncher.launch(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply { putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM); putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault()); putExtra(RecognizerIntent.EXTRA_PROMPT, "Ask Nova-AJ") }) }
+    fun startVoice() { if (androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) speechLauncher.launch(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply { putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM); putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault()); putExtra(RecognizerIntent.EXTRA_PROMPT, "Ask Nova-AJ") }) else permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) }
+    fun send(text: String) { if (text.isBlank() || busy) return; messages.add(ChatMessage(text.trim(), true)); input = ""; error = null; busy = true; Thread { val result = client.chat(text.trim()); runOnUiThread { result.onSuccess { reply -> messages.add(ChatMessage(reply, false)); speak(tts, reply) }.onFailure { error = "Connection failed: ${it.message ?: "unknown error"}" }; busy = false } }.start() }
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Text("Chat", style = MaterialTheme.typography.headlineMedium)
         LazyColumn(Modifier.weight(1f).fillMaxWidth(), reverseLayout = true) { items(messages.asReversed()) { message -> Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) { Text(if (message.fromUser) "You: ${message.text}" else "Nova: ${message.text}", Modifier.padding(12.dp)) } } }
         error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(input, { input = it }, Modifier.weight(1f), placeholder = { Text("Ask Nova-AJ…") }, enabled = !busy)
-            Button(onClick = { val text = input.trim(); if (text.isEmpty() || busy) return@Button; messages.add(ChatMessage(text, true)); input = ""; error = null; busy = true; Thread { val result = client.chat(text); runOnUiThread { result.onSuccess { reply -> messages.add(ChatMessage(reply, false)); speak(tts, reply) }.onFailure { error = "Connection failed: ${it.message ?: "unknown error"}" }; busy = false } }.start() }, enabled = input.isNotBlank() && !busy) { Text(if (busy) "…" else "Send") }
+            Button(onClick = { startVoice() }, enabled = !busy) { Text("🎙") }
+            Button(onClick = { send(input) }, enabled = input.isNotBlank() && !busy) { Text(if (busy) "…" else "Send") }
         }
     }
 }
