@@ -14,6 +14,15 @@ android {
         targetSdk = 35
         versionCode = 286
         versionName = "0.286.0"
+
+        val apiUrl = providers.gradleProperty("novaApiUrl").orElse("http://10.0.2.2:8080").get()
+        val apiToken = providers.gradleProperty("novaApiToken").orElse("").get()
+        buildConfigField("String", "NOVA_API_URL", "\"${apiUrl.replace("\"", "\\\"")}\"")
+        buildConfigField("String", "NOVA_API_TOKEN", "\"${apiToken.replace("\"", "\\\"")}\"")
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 }
 
