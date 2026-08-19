@@ -5,14 +5,23 @@ from core.context_policy import ContextPolicy
 
 def test_context_policy_bounds_each_context_source():
     snapshot = SimpleNamespace(
-        profile={"preferred_name": "AJ", "language": "en", "timezone": "IST", "email": "secret"},
+        profile={
+            "preferred_name": "AJ",
+            "language": "en",
+            "timezone": "IST",
+            "communication_style": "concise",
+            "response_style": "direct",
+            "theme": "dark",
+            "email": "secret",
+        },
         memories=[{"text": f"memory {i}"} for i in range(10)],
         conversations=[{"text": f"conversation {i}"} for i in range(12)],
     )
 
-    result = ContextPolicy(max_profile_fields=5, max_memories=3, max_conversations=4).apply(snapshot)
+    result = ContextPolicy(max_profile_fields=3, max_memories=3, max_conversations=4).apply(snapshot)
 
     assert len(result["profile"]) == 3
+    assert list(result["profile"]) == ["preferred_name", "language", "timezone"]
     assert len(result["relevant_memories"]) == 3
     assert len(result["relevant_conversations"]) == 4
     assert result["relevant_memories"][-1]["text"] == "memory 9"
