@@ -10,6 +10,7 @@ from .system_status import SystemStatus
 from .startup_diagnostics import StartupDiagnostics
 from .memory import MemoryStore
 from .learning import SkillGrowth
+from .skill_trainer import SkillTrainer
 from .ai_provider import AIProvider
 from .conversation import ConversationContext
 from .conversation_history import ConversationHistory
@@ -38,10 +39,10 @@ class NovaAssistant:
         self.skill_permissions = SkillPermissions()
         self.skill_management = SkillManagement(self.skills, self.skill_permissions)
         self.permission_guard = PermissionGuard(self.skill_permissions)
-        self.memory = MemoryStore(); self.profile = ProfileStore(); self.learning = SkillGrowth()
+        self.memory = MemoryStore(); self.profile = ProfileStore(); self.learning = SkillGrowth(); self.trainer = SkillTrainer()
         self.ai = AIProvider(); self.brain = AgentBrain(self.ai); self.conversation = ConversationContext(); self.history = ConversationHistory(); self.context_intelligence = ContextIntelligence(self.profile, self.memory, self.history); self.context_resolver = ContextResolver(self.conversation, self.context_intelligence); self.context_policy = ContextPolicy(); self.tools = ToolRegistry()
         self._register_tools(); self.agent = Agent(self.tools); self.router = router or AssistantRouter()
-        self.health = HealthCheck({"listener": self.listener, "speaker": self.speaker, "skills": self.skills, "memory": self.memory, "profile": self.profile, "learning": self.learning, "ai": self.ai, "brain": self.brain, "conversation": self.conversation, "history": self.history, "context_intelligence": self.context_intelligence, "context_resolver": self.context_resolver, "context_policy": self.context_policy, "tools": self.tools, "agent": self.agent, "router": self.router})
+        self.health = HealthCheck({"listener": self.listener, "speaker": self.speaker, "skills": self.skills, "memory": self.memory, "profile": self.profile, "learning": self.learning, "trainer": self.trainer, "ai": self.ai, "brain": self.brain, "conversation": self.conversation, "history": self.history, "context_intelligence": self.context_intelligence, "context_resolver": self.context_resolver, "context_policy": self.context_policy, "tools": self.tools, "agent": self.agent, "router": self.router})
         self.system_status = SystemStatus(self)
         self.startup_report = StartupDiagnostics(self)
         self.voice_session = VoiceSession(self.listener, self.speaker, max_turns=VOICE_MAX_TURNS)
@@ -77,6 +78,11 @@ class NovaAssistant:
         self.tools.register(Tool(name="calculate", description="Calculate a basic arithmetic expression safely", handler=builtins["calculate"]))
         web = web_handlers()
         self.tools.register(Tool(name="web_search", description="Search the public web for factual information using Wikipedia", handler=web["web_search"]))
+        self.tools.register(Tool(name="train_skill", description="Create a user-trained skill draft from structured instructions; never executes generated code", handler=self.trainer.train, risk_level="medium"))
+        self.tools.register(Tool(name="test_trained_skill", description="Test whether a trained skill trigger matches a query without executing its steps", handler=self.trainer.test))
+        self.tools.register(Tool(name="approve_trained_skill", description="Activate a trained skill specification after user approval", handler=lambda name: self.trainer.approve(name), risk_level="medium"))
+        self.tools.register(Tool(name="disable_trained_skill", description="Disable an active trained skill", handler=lambda name: self.trainer.disable(name), risk_level="medium"))
+        self.tools.register(Tool(name="list_trained_skills", description="List user-trained skill specifications and their status", handler=lambda: str(self.trainer.list())))
 
     def startup_diagnostics(self) -> dict[str, object]:
         return self.startup_report.run()
@@ -97,7 +103,7 @@ class NovaAssistant:
                     return f"Permission confirmation required for {skill.name}: {permission}."
                 return f"Skill blocked: {decision.reason}."
         try:
-            return skill.handle(query, {"memory": self.memory, "assistant": self, "health": self.health, "skill_management": self.skill_management})
+            return skill.handle(query, {"memory": self.memory, "assistant": self, "health": self.health, "skill_management": self.skill_management, "trainer": self.trainer})
         except Exception:
             return "That skill failed safely."
 
