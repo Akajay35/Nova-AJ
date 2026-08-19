@@ -10,7 +10,7 @@ class FileSkill(BaseSkill):
     description = "Lists files and creates simple text notes inside the Nova AJ workspace."
     keywords = ["list files", "show files", "create note", "make a note", "save a note"]
     risk_level = "medium"
-    required_permissions = ("filesystem",)
+    required_permissions = ("files",)
 
     root = Path("data")
 
