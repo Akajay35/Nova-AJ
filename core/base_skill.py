@@ -9,6 +9,7 @@ class BaseSkill(ABC):
     description = ""
     keywords: list[str] = []
     risk_level = "low"
+    required_permissions: tuple[str, ...] = ()
 
     @abstractmethod
     def handle(self, query: str, context: dict[str, Any] | None = None) -> str:
