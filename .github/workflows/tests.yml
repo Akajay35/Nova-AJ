@@ -6,6 +6,7 @@ on:
       - main
       - feat/v285-context-policy
       - feat/v286-hardening
+      - feat/v286-rebuild
   pull_request:
     branches: [main]
   workflow_dispatch:
