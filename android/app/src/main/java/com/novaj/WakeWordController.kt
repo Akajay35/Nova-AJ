@@ -5,12 +5,7 @@ import android.content.Intent
 import android.speech.RecognizerIntent
 import androidx.activity.result.ActivityResultLauncher
 
-/**
- * Privacy-first wake-word boundary.
- * The app stays idle until the user explicitly enables wake-word mode.
- * Actual always-on hotword detection should be supplied by a dedicated
- * on-device engine/service rather than continuously recording through UI code.
- */
+/** Privacy-first wake-word controller. Always-on detection is intentionally delegated to a dedicated on-device engine/service. */
 class WakeWordController(
     private val context: Context,
     private val speechLauncher: ActivityResultLauncher<Intent>
@@ -18,9 +13,7 @@ class WakeWordController(
     var enabled: Boolean = false
         private set
 
-    fun setEnabled(value: Boolean) {
-        enabled = value
-    }
+    fun setEnabled(value: Boolean) { enabled = value }
 
     fun startListeningAfterWake() {
         if (!enabled) return
