@@ -11,6 +11,7 @@ from .startup_diagnostics import StartupDiagnostics
 from .memory import MemoryStore
 from .learning import SkillGrowth
 from .skill_trainer import SkillTrainer
+from .trained_skill_runtime import TrainedSkillRuntime
 from .ai_provider import AIProvider
 from .conversation import ConversationContext
 from .conversation_history import ConversationHistory
@@ -41,8 +42,8 @@ class NovaAssistant:
         self.permission_guard = PermissionGuard(self.skill_permissions)
         self.memory = MemoryStore(); self.profile = ProfileStore(); self.learning = SkillGrowth(); self.trainer = SkillTrainer()
         self.ai = AIProvider(); self.brain = AgentBrain(self.ai); self.conversation = ConversationContext(); self.history = ConversationHistory(); self.context_intelligence = ContextIntelligence(self.profile, self.memory, self.history); self.context_resolver = ContextResolver(self.conversation, self.context_intelligence); self.context_policy = ContextPolicy(); self.tools = ToolRegistry()
-        self._register_tools(); self.agent = Agent(self.tools); self.router = router or AssistantRouter()
-        self.health = HealthCheck({"listener": self.listener, "speaker": self.speaker, "skills": self.skills, "memory": self.memory, "profile": self.profile, "learning": self.learning, "trainer": self.trainer, "ai": self.ai, "brain": self.brain, "conversation": self.conversation, "history": self.history, "context_intelligence": self.context_intelligence, "context_resolver": self.context_resolver, "context_policy": self.context_policy, "tools": self.tools, "agent": self.agent, "router": self.router})
+        self._register_tools(); self.trained_runtime = TrainedSkillRuntime(self.trainer, self.tools, self.permission_guard); self.agent = Agent(self.tools); self.router = router or AssistantRouter()
+        self.health = HealthCheck({"listener": self.listener, "speaker": self.speaker, "skills": self.skills, "memory": self.memory, "profile": self.profile, "learning": self.learning, "trainer": self.trainer, "ai": self.ai, "brain": self.brain, "conversation": self.conversation, "history": self.history, "context_intelligence": self.context_intelligence, "context_resolver": self.context_resolver, "context_policy": self.context_policy, "tools": self.tools, "agent": self.agent, "router": self.router, "trained_runtime": self.trained_runtime})
         self.system_status = SystemStatus(self)
         self.startup_report = StartupDiagnostics(self)
         self.voice_session = VoiceSession(self.listener, self.speaker, max_turns=VOICE_MAX_TURNS)
@@ -83,6 +84,7 @@ class NovaAssistant:
         self.tools.register(Tool(name="approve_trained_skill", description="Activate a trained skill specification after user approval", handler=lambda name: self.trainer.approve(name), risk_level="medium"))
         self.tools.register(Tool(name="disable_trained_skill", description="Disable an active trained skill", handler=lambda name: self.trainer.disable(name), risk_level="medium"))
         self.tools.register(Tool(name="list_trained_skills", description="List user-trained skill specifications and their status", handler=lambda: str(self.trainer.list())))
+        self.tools.register(Tool(name="run_trained_skill", description="Run an approved trained skill through the restricted tool-only runtime", handler=lambda name: str(self.trained_runtime.execute(name)), risk_level="medium"))
 
     def startup_diagnostics(self) -> dict[str, object]:
         return self.startup_report.run()
