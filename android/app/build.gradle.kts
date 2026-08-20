@@ -1,3 +1,5 @@
+import org.gradle.api.tasks.compile.JavaCompile
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -29,6 +31,11 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+}
+
+// Explicitly force the app module's Java compiler to emit JVM 17 bytecode.
+tasks.withType<JavaCompile>().configureEach {
+    options.release.set(17)
 }
 
 kotlin {
