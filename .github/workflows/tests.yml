@@ -49,7 +49,7 @@ jobs:
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.9.2'
+          gradle-version: '8.9'
       - name: Verify Android Gradle environment
         run: gradle --version
       - name: Build Android debug APK
@@ -62,4 +62,4 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-# CI trigger marker: Android build uses AGP-compatible Gradle 8.9.2 and stacktrace diagnostics.
+# CI trigger marker: use released Gradle 8.9 with AGP 8.7.3 and stacktrace diagnostics.
