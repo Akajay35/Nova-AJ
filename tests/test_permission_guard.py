@@ -11,6 +11,7 @@ def test_guard_blocks_without_permission(tmp_path):
 
 def test_guard_runs_after_confirmation_without_persisting(tmp_path):
     pm = PermissionManager(str(tmp_path / "permissions.json"))
+    pm.configure("web", "network")
     confirmations = []
     guard = PermissionGuard(
         pm,
@@ -24,6 +25,7 @@ def test_guard_runs_after_confirmation_without_persisting(tmp_path):
 
 def test_guard_requires_confirmation_again_for_next_execution(tmp_path):
     pm = PermissionManager(str(tmp_path / "permissions.json"))
+    pm.configure("web", "network")
     calls = []
 
     def confirm(skill, permission):
