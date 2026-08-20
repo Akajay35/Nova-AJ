@@ -11,10 +11,10 @@ class SkillDraft:
 class SkillTrainer:
  def __init__(self,path:str|Path="data/trained_skills.json",storage_path:str|Path|None=None)->None:
   self.path=Path(storage_path if storage_path is not None else path); self.path.parent.mkdir(parents=True,exist_ok=True)
- def train(self,name,description,trigger,steps,*,risk_level="low",required_permissions=()):
+ def train(self,name,description="",trigger="",steps=(),*,risk_level="low",required_permissions=()):
   name=name.strip().lower(); description=description.strip(); trigger=trigger.strip(); normalized=tuple(s.strip() for s in steps if s and s.strip()); permissions=tuple(sorted({p.strip().lower() for p in required_permissions if p and p.strip()}))
   if not _SAFE_NAME.fullmatch(name): raise ValueError("invalid skill name")
-  if not description or len(description)>_MAX_INSTRUCTION: raise ValueError("description must be 1-4000 characters")
+  if len(description)>_MAX_INSTRUCTION: raise ValueError("description must be 0-4000 characters")
   if not trigger or len(trigger)>300: raise ValueError("trigger must be 1-300 characters")
   if not normalized or len(normalized)>_MAX_STEPS: raise ValueError("skill must contain 1-20 steps")
   if any(len(s)>_MAX_INSTRUCTION for s in normalized): raise ValueError("skill step is too long")
@@ -38,4 +38,4 @@ class SkillTrainer:
   return record
  def _all_with(self,name,record): records=self._load(); records[name.strip().lower()]=record; return records
  @staticmethod
- def _to_draft(record): return SkillDraft(str(record["name"]),str(record["description"]),str(record["trigger"]),tuple(str(s) for s in record.get("steps",[])),str(record.get("risk_level","low")),tuple(str(p) for p in record.get("required_permissions",[])),str(record.get("status","draft")),str(record.get("created_at","")))
+ def _to_draft(record): return SkillDraft(str(record["name"]),str(record.get("description","")),str(record["trigger"]),tuple(str(s) for s in record.get("steps",[])),str(record.get("risk_level","low")),tuple(str(p) for p in record.get("required_permissions",[])),str(record.get("status","draft")),str(record.get("created_at","")))
