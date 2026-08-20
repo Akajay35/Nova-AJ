@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 
+from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from .memory_store import MemoryStore
@@ -40,7 +41,7 @@ class EncryptedMemoryStore(MemoryStore):
             data = AESGCM(self._key()).decrypt(nonce, ciphertext, version)
             items = json.loads(data.decode("utf-8"))
             return items if isinstance(items, list) else []
-        except (OSError, ValueError, json.JSONDecodeError, TypeError):
+        except (OSError, ValueError, json.JSONDecodeError, TypeError, InvalidTag):
             return []
 
     def _write(self, items):
