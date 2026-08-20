@@ -47,10 +47,10 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - name: Set up Gradle 8.9
+      - name: Set up Gradle 8.9.0
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.9'
+          gradle-version: '8.9.0'
       - name: Verify Android Gradle environment
         run: gradle --version
       - name: Build Android debug APK
@@ -63,4 +63,4 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-# CI marker: use released Gradle 8.9 with AGP 8.7.3.
+# CI marker: use released Gradle 8.9.0 with AGP 8.7.3.
