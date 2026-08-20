@@ -7,8 +7,8 @@ from pathlib import Path
 class PermissionManager:
     """Explicit per-skill permission store. Missing permissions default to deny."""
 
-    def __init__(self, path: str = "data/permissions.json"):
-        self.path = Path(path)
+    def __init__(self, path: str = "data/permissions.json", config_path: str | Path | None = None):
+        self.path = Path(config_path if config_path is not None else path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         if not self.path.exists():
             self._write({})
@@ -23,11 +23,23 @@ class PermissionManager:
     def _write(self, data: dict) -> None:
         self.path.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
+    def configure(self, skill: str, permission: str) -> None:
+        data = self._read()
+        entry = data.setdefault(skill, {})
+        entry.setdefault("configured", [])
+        if permission not in entry["configured"]:
+            entry["configured"].append(permission)
+        self._write(data)
+
     def grant(self, skill: str, permission: str) -> None:
         data = self._read()
-        data.setdefault(skill, {}).setdefault("granted", [])
-        if permission not in data[skill]["granted"]:
-            data[skill]["granted"].append(permission)
+        entry = data.setdefault(skill, {})
+        entry.setdefault("configured", [])
+        entry.setdefault("granted", [])
+        if permission not in entry["configured"]:
+            entry["configured"].append(permission)
+        if permission not in entry["granted"]:
+            entry["granted"].append(permission)
         self._write(data)
 
     def revoke(self, skill: str, permission: str) -> bool:
@@ -43,14 +55,10 @@ class PermissionManager:
         return permission in self._read().get(skill, {}).get("granted", [])
 
     def configured(self, skill: str) -> set[str]:
-        """Return permissions explicitly configured for a skill.
-
-        The current permission model treats granted permissions as configured
-        permissions. This keeps the guard fail-closed while remaining backward
-        compatible with the existing JSON format.
-        """
-        grants = self._read().get(skill, {}).get("granted", [])
-        return {str(permission) for permission in grants}
+        entry = self._read().get(skill, {})
+        configured = entry.get("configured", [])
+        # Existing stores that only have granted[] remain configured for compatibility.
+        return {str(permission) for permission in configured} | {str(permission) for permission in entry.get("granted", [])}
 
     def can_use(self, skill: str, permission: str) -> bool:
         return self.allowed(skill, permission)
