@@ -5,6 +5,8 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
@@ -108,7 +110,7 @@ private fun ChatScreen(messages: MutableList<ChatMessage>, client: NovaApiClient
     val speechLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result -> val text = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull(); if (!text.isNullOrBlank() && !busy) input = text }
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> if (granted) speechLauncher.launch(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply { putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM); putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault()); putExtra(RecognizerIntent.EXTRA_PROMPT, "Ask Nova-AJ") }) }
     fun startVoice() { if (androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) speechLauncher.launch(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply { putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM); putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault()); putExtra(RecognizerIntent.EXTRA_PROMPT, "Ask Nova-AJ") }) else permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) }
-    fun send(text: String) { if (text.isBlank() || busy) return; messages.add(ChatMessage(text.trim(), true)); input = ""; error = null; busy = true; Thread { val result = client.chat(text.trim()); runOnUiThread { result.onSuccess { reply -> messages.add(ChatMessage(reply, false)); speak(tts, reply) }.onFailure { error = "Connection failed: ${it.message ?: "unknown error"}" }; busy = false } }.start() }
+    fun send(text: String) { if (text.isBlank() || busy) return; messages.add(ChatMessage(text.trim(), true)); input = ""; error = null; busy = true; Thread { val result = client.chat(text.trim()); Handler(Looper.getMainLooper()).post { result.onSuccess { reply -> messages.add(ChatMessage(reply, false)); speak(tts, reply) }.onFailure { error = "Connection failed: ${it.message ?: "unknown error"}" }; busy = false } }.start() }
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Text("Chat", style = MaterialTheme.typography.headlineMedium)
         LazyColumn(Modifier.weight(1f).fillMaxWidth(), reverseLayout = true) { items(messages.asReversed()) { message -> Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) { Text(if (message.fromUser) "You: ${message.text}" else "Nova: ${message.text}", Modifier.padding(12.dp)) } } }
