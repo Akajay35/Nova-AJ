@@ -3,3 +3,4 @@ PyAudio>=0.2.14
 pyttsx3>=2.90
 python-dotenv>=1.0
 openai>=1.40
+cryptography>=44.0
