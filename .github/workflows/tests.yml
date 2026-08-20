@@ -53,6 +53,8 @@ jobs:
           gradle-version: '8.9'
       - name: Verify Android Gradle environment
         run: gradle --version
+      - name: Diagnose JVM targets
+        run: gradle --no-daemon --stacktrace verifyJvmTargets
       - name: Build Android debug APK
         run: gradle --no-daemon --stacktrace assembleDebug
       - name: Upload debug APK
