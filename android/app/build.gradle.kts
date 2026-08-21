@@ -35,11 +35,11 @@ android {
     }
 }
 
-// Force every Java compile task in the app module to target JVM 17.
+// Force Java compilation to use JVM 17 without JavaCompile --release,
+// because Android Gradle Plugin needs to configure the Android bootclasspath.
 tasks.withType<JavaCompile>().configureEach {
     sourceCompatibility = "17"
     targetCompatibility = "17"
-    options.release.set(17)
 }
 
 // Force every Kotlin compile task in the app module to target JVM 17.
