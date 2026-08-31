@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import os
+import time
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-app = FastAPI(title="Nova-AJ API", version="1.2.0")
+app = FastAPI(title="Nova-AJ API", version="1.3.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -36,16 +37,41 @@ def _safe_openai_error(exc: Exception) -> tuple[int, str]:
         return 401, "OpenAI API key is invalid or not authorized for this project"
     if "permission" in name or "permission" in message or "forbidden" in message:
         return 403, "OpenAI API key does not have permission to use this resource"
-    if "rate" in name or "rate_limit" in message or "rate limit" in message:
-        return 429, "OpenAI API rate limit reached; try again later"
     if "quota" in message or "billing" in message or "insufficient_quota" in message:
         return 402, "OpenAI API account has no available API quota or billing is required"
+    if "rate" in name or "rate_limit" in message or "rate limit" in message or "too many requests" in message:
+        return 429, "OpenAI API is temporarily rate-limited. Please wait a moment and try again."
     if "not_found" in name or "model" in message and ("not found" in message or "does not exist" in message):
         return 400, "The configured OpenAI model is unavailable to this API project"
     if "timeout" in name or "timed out" in message:
         return 504, "OpenAI API request timed out"
 
     return 502, "OpenAI API request failed; check the Render service logs for the request error"
+
+
+def _is_rate_limit_error(exc: Exception) -> bool:
+    name = type(exc).__name__.lower()
+    message = str(exc).lower()
+    return (
+        "rate" in name
+        or "rate_limit" in message
+        or "rate limit" in message
+        or "too many requests" in message
+    )
+
+
+def _retry_delay(exc: Exception, attempt: int) -> float:
+    """Use Retry-After when exposed by the SDK, otherwise exponential backoff."""
+    headers = getattr(exc, "response", None)
+    headers = getattr(headers, "headers", None)
+    if headers:
+        retry_after = headers.get("retry-after") or headers.get("Retry-After")
+        if retry_after:
+            try:
+                return min(max(float(retry_after), 1.0), 30.0)
+            except (TypeError, ValueError):
+                pass
+    return min(2 ** attempt, 8)
 
 
 @app.get("/")
@@ -81,14 +107,35 @@ def chat(request: ChatRequest) -> ChatResponse:
         from openai import OpenAI
 
         client = OpenAI(api_key=api_key)
-        response: Any = client.responses.create(
-            model=model,
-            instructions=(
-                "You are Nova-AJ, a helpful personal AI assistant. "
-                "Be concise, friendly, and practical. Do not claim to perform actions you cannot perform."
-            ),
-            input=request.message,
-        )
+        response: Any | None = None
+        last_rate_limit_error: Exception | None = None
+
+        # Retry transient 429 responses with bounded exponential backoff.
+        # We deliberately keep this short so a Render request does not hang.
+        for attempt in range(3):
+            try:
+                response = client.responses.create(
+                    model=model,
+                    instructions=(
+                        "You are Nova-AJ, a helpful personal AI assistant. "
+                        "Be concise, friendly, and practical. Do not claim to perform actions you cannot perform."
+                    ),
+                    input=request.message,
+                )
+                break
+            except Exception as exc:
+                if not _is_rate_limit_error(exc) or attempt == 2:
+                    raise
+                last_rate_limit_error = exc
+                delay = _retry_delay(exc, attempt)
+                print(f"Nova-AJ OpenAI rate limited; retrying in {delay:.1f}s (attempt {attempt + 1}/3)")
+                time.sleep(delay)
+
+        if response is None:
+            if last_rate_limit_error is not None:
+                raise last_rate_limit_error
+            raise RuntimeError("OpenAI returned no response")
+
         reply = getattr(response, "output_text", None)
         if not reply:
             raise RuntimeError("OpenAI returned no text response")
