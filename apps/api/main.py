@@ -6,6 +6,8 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 from pydantic import BaseModel, Field
 
 app = FastAPI(title="Nova-AJ API", version="1.3.0")
@@ -147,3 +149,8 @@ def chat(request: ChatRequest) -> ChatResponse:
         print(f"Nova-AJ OpenAI error: {type(exc).__name__}: {exc}")
         status_code, detail = _safe_openai_error(exc)
         raise HTTPException(status_code=status_code, detail=detail) from exc
+
+
+# Serve the same installable web client to desktop browsers and Android Chrome.
+WEB_DIR = Path(__file__).resolve().parents[1] / "web"
+app.mount("/app", StaticFiles(directory=str(WEB_DIR), html=True), name="web")

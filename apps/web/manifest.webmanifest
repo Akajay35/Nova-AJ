@@ -1,0 +1,20 @@
+{
+  "id": "/app/",
+  "name": "Nova AJ Personal AI",
+  "short_name": "Nova AJ",
+  "description": "Your personal AI assistant",
+  "start_url": "/app/",
+  "scope": "/app/",
+  "display": "standalone",
+  "background_color": "#080d19",
+  "theme_color": "#0b1020",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/app/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1020">
+  <meta name="description" content="Nova AJ personal AI assistant — chat, voice input, and installable mobile experience.">
+  <title>Nova AJ — Personal AI</title>
+  <link rel="manifest" href="/app/manifest.webmanifest">
+  <link rel="icon" href="/app/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/app/styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand-mark" aria-hidden="true">N</div>
+      <div class="brand-copy"><h1>Nova AJ</h1><p>Your personal AI assistant</p></div>
+      <span id="connection" class="status" role="status">Checking…</span>
+    </header>
+    <section class="welcome" aria-labelledby="welcome-title">
+      <p class="eyebrow">YOUR SPACE. YOUR ASSISTANT.</p>
+      <h2 id="welcome-title">What can I help you with?</h2>
+      <p class="welcome-copy">Ask a question, plan your day, or work through an idea. Your messages go to the Nova AJ API configured for this service.</p>
+      <div class="suggestions" aria-label="Suggested prompts">
+        <button class="suggestion" type="button" data-prompt="Help me plan my day">Plan my day</button>
+        <button class="suggestion" type="button" data-prompt="Explain a difficult topic in simple steps">Explain a topic</button>
+        <button class="suggestion" type="button" data-prompt="Help me debug a Python error">Debug Python</button>
+      </div>
+    </section>
+    <section id="conversation" class="conversation" aria-label="Conversation" aria-live="polite">
+      <div id="empty-state" class="empty-state"><span aria-hidden="true">✦</span><p>Your conversation will appear here.</p></div>
+    </section>
+    <form id="chat-form" class="composer">
+      <label class="sr-only" for="message">Message Nova AJ</label>
+      <textarea id="message" name="message" rows="1" maxlength="10000" placeholder="Message Nova AJ…" required></textarea>
+      <div class="composer-actions">
+        <button id="voice-button" class="icon-button" type="button" aria-label="Use voice input" title="Voice input">🎙</button>
+        <span class="privacy-note">Never enter passwords or API keys here.</span>
+        <button id="send-button" class="send-button" type="submit"><span>Send</span><span aria-hidden="true">↑</span></button>
+      </div>
+    </form>
+    <footer class="footer"><span>Nova AJ · Web & Android-ready</span><button id="install-button" class="install-button" type="button" hidden>Install app</button><span id="model-label">Connecting to API…</span></footer>
+    <p id="notice" class="notice" role="status" aria-live="polite"></p>
+  </main>
+  <script src="/app/app.js" defer></script>
+</body>
+</html>
