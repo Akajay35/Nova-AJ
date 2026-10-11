@@ -77,3 +77,25 @@ When Nova AJ receives a request it cannot safely handle, the learning engine rec
 ## Security
 
 Never commit API keys. Keep `.env` local. Review any skill before enabling it, especially skills that access files, the operating system, accounts, payments, or external services. Browser automation is intentionally allowlisted.
+
+
+## Web and Android (installable PWA)
+
+The FastAPI service serves a responsive chat client at `/app/`. On Android, open the HTTPS `/app/` URL in Chrome and choose **Install app** or **Add to Home screen**. This is an installable Progressive Web App (PWA), not a native APK; a separate Android project can be added later if native-only features are required.
+
+### Run the API and web client locally
+
+```bash
+python -m pip install -r requirements.txt
+python -m pip install pytest httpx
+python -m uvicorn apps.api.main:app --host 127.0.0.1 --port 8000
+```
+
+Open `http://127.0.0.1:8000/app/`. The chat endpoint requires `OPENAI_API_KEY` to be configured in the server environment. Never put the key in browser JavaScript or commit it to Git.
+
+### Run checks
+
+```bash
+python -m pytest -q
+python -m compileall -q apps core skills
+```
